@@ -1,6 +1,6 @@
-import {LandingConcept} from "./layouts/concept";
+import {StudioLanding} from "./layouts/studio/landing";
 import "./layouts/layouts.css";
 
 export default function Home(){
-  return <LandingConcept mode="studio" review={false}/>;
+  return <StudioLanding/>;
 }

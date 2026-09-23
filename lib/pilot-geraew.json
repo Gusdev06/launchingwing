@@ -1,0 +1,97 @@
+{
+  "id": "geraew-editorial-assisted-2026-09-11",
+  "context": {
+    "name": "GERAEW",
+    "description": "Plataforma online de criação de imagens, vídeos e avatares digitais com inteligência artificial.",
+    "audience": "Criadores e pequenos operadores de marcas que precisam produzir conteúdo visual para divulgar produtos.",
+    "situations": "Ter um produto para divulgar e travar quando a ideia exige gravar o próprio rosto.\nTer uma imagem pronta e querer animá-la sem ignorar problemas visuais básicos.\nQuerer produzir outra peça para um produto já divulgado, sem repetir a mesma abertura."
+  },
+  "facts": [
+    "A GERAEW apresenta recursos de geração de imagens e vídeos com IA.",
+    "A GERAEW oferece criação de avatares ou influencers digitais com IA.",
+    "O site informa acesso pelo navegador em computador e celular, sem instalação."
+  ],
+  "sources": [
+    {
+      "url": "https://geraew.ai/en",
+      "label": "Site oficial da GERAEW — apresentação pública e FAQ",
+      "checkedAt": "2026-09-11"
+    }
+  ],
+  "pieces": [
+    {
+      "id": "geraew-p01-sem-aparecer",
+      "format": "Vídeo POV com avatar de IA",
+      "hook": "POV: você percebe que não precisa ser a pessoa do anúncio",
+      "caption": "Nem toda ideia pede você na frente da câmera. Uma personagem pode apresentar a cena enquanto você cuida da mensagem.\n\nA GERAEW reúne criação de imagens, vídeos e avatares com IA. Conheça a plataforma e explore uma ideia para o seu produto.",
+      "rationale": "A reação de surpresa seguida de sorriso combina com a descoberta de uma alternativa à própria gravação. A legenda já incorporada apresenta esse mesmo ângulo. A caption conduz à capacidade anunciada de avatares, sem atribuir experiência real à personagem.",
+      "assets": [
+        {
+          "url": "/pilot/geraew/geraew-p01-sem-aparecer-1.mp4",
+          "kind": "video",
+          "alt": "POV: você percebe que não precisa ser a pessoa do anúncio"
+        }
+      ],
+      "provenance": "Estudo editorial reaproveitado: ugc-03 do lote GERAEW de 11/09/2026. Imagem nativa Codex com referência de avatar fornecida pelo usuário, animada via WaveSpeed/Seedance V1 Pro Fast. Não gerado pelo protótipo nem dentro da GERAEW; não é depoimento de cliente.",
+      "status": "pending",
+      "feedback": "",
+      "reviewSeconds": 0
+    },
+    {
+      "id": "geraew-p02-antes-de-animar",
+      "format": "Carrossel educativo com 5 slides",
+      "hook": "Antes de animar: 3 coisas para conferir",
+      "caption": "Antes de animar, dê uma última olhada na imagem:\n\n1. Mãos e produto: confira dedos, contornos e proporções.\n2. Texto: reserve uma área que não esconda o rosto nem o produto.\n3. Movimento: escolha uma ação simples para começar.\n\nDepois, assista ao vídeo inteiro. A capa não mostra tudo. Salve este checklist para a próxima criação com IA.",
+      "rationale": "Entrega uma orientação aplicável antes de pedir interesse pelo produto. Os cinco slides já mostram exatamente esse checklist e fecham com revisão do vídeo. O tema aproxima GERAEW da rotina de criação sem alegar que a plataforma detecta ou corrige esses erros automaticamente.",
+      "assets": [
+        {
+          "url": "/pilot/geraew/geraew-p02-antes-de-animar-1.png",
+          "kind": "image",
+          "alt": "Antes de animar: 3 coisas para conferir"
+        },
+        {
+          "url": "/pilot/geraew/geraew-p02-antes-de-animar-2.png",
+          "kind": "image",
+          "alt": "1. Mãos e produto"
+        },
+        {
+          "url": "/pilot/geraew/geraew-p02-antes-de-animar-3.png",
+          "kind": "image",
+          "alt": "2. Espaço para o texto"
+        },
+        {
+          "url": "/pilot/geraew/geraew-p02-antes-de-animar-4.png",
+          "kind": "image",
+          "alt": "3. Um movimento claro"
+        },
+        {
+          "url": "/pilot/geraew/geraew-p02-antes-de-animar-5.png",
+          "kind": "image",
+          "alt": "Anime. Assista. Ajuste."
+        }
+      ],
+      "provenance": "Estudo editorial reaproveitado: carrossel-04 final do lote GERAEW de 11/09/2026. Composição de texto com imagens geradas do avatar; manifesto e script final confirmam as cinco bases do avatar. Não gerado pelo protótipo nem dentro da GERAEW; não é case de cliente.",
+      "status": "pending",
+      "feedback": "",
+      "reviewSeconds": 0
+    },
+    {
+      "id": "geraew-p03-outro-gancho",
+      "format": "Vídeo de reação com avatar de IA",
+      "hook": "quando lembro que posso testar outro gancho pro mesmo produto",
+      "caption": "O produto é o mesmo. A abertura pode partir de outra situação.\n\nUma dúvida que a pessoa tem. Um problema que ela reconhece. Um momento de uso. Escolha outro ponto de partida, mantenha uma mensagem por peça e explore o visual na GERAEW.\n\nDepois, revise texto e imagem juntos antes de publicar.",
+      "rationale": "O gesto de ideia e o sorriso sustentam a lembrança de que existe outra abordagem possível. A caption desenvolve a variação de gancho que já aparece no vídeo. Não atribui à GERAEW geração de roteiros, testes A/B ou melhoria de performance que não foram verificados.",
+      "assets": [
+        {
+          "url": "/pilot/geraew/geraew-p03-outro-gancho-1.mp4",
+          "kind": "video",
+          "alt": "quando lembro que posso testar outro gancho pro mesmo produto"
+        }
+      ],
+      "provenance": "Estudo editorial reaproveitado: ugc-04 do lote GERAEW de 11/09/2026. Imagem nativa Codex com referência de avatar fornecida pelo usuário, animada via WaveSpeed/Seedance V1 Pro Fast. Não gerado pelo protótipo nem dentro da GERAEW; não é depoimento de cliente.",
+      "status": "pending",
+      "feedback": "",
+      "reviewSeconds": 0
+    }
+  ]
+}

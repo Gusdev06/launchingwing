@@ -8,6 +8,13 @@
       "when": 1788978023431,
       "tag": "0000_jazzy_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789111592020,
+      "tag": "0001_round_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

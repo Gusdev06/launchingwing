@@ -1,0 +1,57 @@
+"use client";
+
+import {ArrowDown,ArrowRight,ArrowUpRight,Check,FileImage,Film,Link2,MessageSquare,MousePointer2,PanelTop,ScanLine} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {Accordion,AccordionItem,AccordionTrigger,AccordionContent} from '@/components/ui/accordion';
+import {Deck,Signup,VideoStage} from '../concept';
+import './studio.css';
+
+const questions=[
+ ['Já posso gerar conteúdo?','Ainda não. A Launchwing está em preparação. Ao se cadastrar, você pede para receber um aviso quando o acesso abrir.'],
+ ['Para quem a Launchwing está sendo criada?','Para criadores de apps, SaaS, microsaas e infoapps que precisam divulgar o produto. Os primeiros testes vão ajudar a definir os casos de uso em que a proposta funciona melhor.'],
+ ['Vou precisar gravar vídeos ou enviar imagens?','Materiais próprios serão opcionais. A proposta é começar pelo link do produto, sem exigir que você grave um vídeo ou prepare um briefing extenso.'],
+ ['Como saber se o conteúdo combina com meu público?','Os exemplos mostram a direção editorial. O fluxo planejado inclui uma revisão para você avaliar a mensagem e sua conexão com o produto, ajustar o que precisar e recusar o que não combina com sua marca.'],
+ ['Os exemplos vieram de clientes da Launchwing?','São estudos editoriais para demonstrar a proposta. Não representam resultados de clientes nem foram gerados por uma versão operacional da Launchwing. O protótipo assistido permite revisar um lote preparado com esse acervo. O caso de uso e o depoimento serão preenchidos com evidências reais após os testes.'],
+ ['A Launchwing vai publicar sem eu aprovar?','O fluxo planejado inclui sua aprovação. Agendamento e publicação no Instagram ainda estão em validação.'],
+ ['Quanto custa entrar na lista?','O cadastro é gratuito, não exige cartão e não cria assinatura. O preço do produto e a data de abertura ainda não foram definidos.'],
+];
+
+function AccessButton(){return <Button asChild className="lw-cta"><a href="#acesso">Quero acesso antecipado <ArrowUpRight aria-hidden="true"/></a></Button>}
+function GhostLines(){return <div className="lw-ghost-lines" aria-hidden="true"><i/><i/><i/></div>}
+function BrowserBar({label}:{label:string}){return <div className="lw-proof-browserbar"><span aria-hidden="true"><i/><i/><i/></span><span>{label}</span><PanelTop size={15} aria-hidden="true"/></div>}
+
+function DemoSpace(){return <section className="lw-wrap lw-proof-demo" aria-labelledby="demo-title" data-proof-slot="product-demo">
+ <div className="lw-proof-intro"><p className="lw-kicker">EXPERIMENTE O PRIMEIRO CASO</p><h2 id="demo-title">Do link à revisão das peças.</h2><p>Abra o caso assistido da GERAEW e experimente a revisão.</p></div>
+ <div className="lw-demo-window"><BrowserBar label="Launchwing / piloto privado"/><div className="lw-demo-canvas"><div className="lw-demo-ghosts" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><GhostLines/></div>)}</div><div className="lw-demo-center"><span className="lw-proof-icon"><Film aria-hidden="true"/></span><strong>Um caso para experimentar.</strong><p>Contexto, três peças e sua decisão sobre cada uma.</p><Button asChild className="lw-cta"><a href="/cadastro">Abrir piloto privado <ArrowUpRight aria-hidden="true"/></a></Button><p className="lw-note">Cadastro, quiz e geração disponíveis no teste local.</p></div></div><div className="lw-demo-footer"><span><Link2/> Seu produto</span><ArrowRight/><span><FileImage/> As peças</span><ArrowRight/><span><Check/> Sua revisão</span></div></div>
+ </section>}
+
+function CaseSpace(){return <section className="lw-wrap lw-proof-case" aria-labelledby="case-title" data-proof-slot="pilot-case">
+ <div className="lw-case-copy"><p className="lw-kicker">DO CONTEXTO AO CONTEÚDO</p><h2 id="case-title">Um produto.<br/>Uma história para acompanhar.</h2><p>O primeiro caso vai mostrar o produto, as peças e o que aconteceu na prática.</p><span className="lw-proof-label">CASO DO PILOTO EM PREPARAÇÃO</span></div>
+ <div className="lw-case-mockup" role="img" aria-label="Mockup de caso do piloto, com espaços para o produto e as peças. Caso em preparação."><div className="lw-case-browser"><BrowserBar label="O produto"/><div className="lw-case-site"><PanelTop aria-hidden="true"/><strong>O ponto de partida</strong><GhostLines/></div></div><div className="lw-case-phone"><span className="lw-phone-camera" aria-hidden="true"/><div><FileImage aria-hidden="true"/><strong>As peças</strong><span>Espaço para o caso real</span></div><span className="lw-phone-home" aria-hidden="true"/></div><span className="lw-case-connection" aria-hidden="true"><ArrowUpRight/></span></div>
+ </section>}
+
+function TestimonialSpace(){return <section className="lw-wrap lw-proof-story" aria-labelledby="story-title" data-proof-slot="pilot-testimonial"><div className="lw-story-note"><span className="lw-proof-icon"><MessageSquare aria-hidden="true"/></span><p className="lw-kicker">A EXPERIÊNCIA DE QUEM TESTAR</p><h2 id="story-title">O que mudou<br/>na hora de divulgar.</h2><p>Relatos de uso depois dos primeiros testes.</p></div><div className="lw-story-placeholder" role="img" aria-label="Espaço reservado para um depoimento real após o piloto, ainda sem relato."><span className="lw-proof-label">RELATO EM PREPARAÇÃO</span><GhostLines/><div className="lw-story-attribution"><span aria-hidden="true"/><p>Um fundador. Sua experiência real.</p></div></div></section>}
+
+export function StudioLanding({review=false}:{review?:boolean}){return <div className="lw lw-studio lw-v7">
+ <a className="lw-skip" href="#conteudo">Pular para o conteúdo</a>
+ <header className="lw-wrap lw-nav"><a href="/" aria-label="Launchwing — início"><img className="lw-logo" src="/brand/logo-primary.svg" alt="Launchwing" width="568" height="128"/></a><nav aria-label="Navegação principal"><a href="#exemplos">O conteúdo</a><a href="#como-funciona">Como funciona</a><a href="#duvidas">Dúvidas</a></nav><AccessButton/></header>
+ <main id="conteudo">
+ <section className="lw-wrap lw-studio-hero"><p className="lw-badge">PARA QUEM JÁ COLOCOU UM APP OU SAAS NO AR</p><h1>Do link do seu produto<br/>{' '}<span>a posts para o seu público.</span></h1><p className="lw-hero-description">Estamos criando a Launchwing para preparar texto, visual e legenda a partir do seu link. Você revisa as peças; fotos e vídeos próprios são opcionais.</p><div className="lw-hero-cta-row"><AccessButton/><a className="lw-secondary-cta" href="#exemplos">Ver exemplos de conteúdo <ArrowDown aria-hidden="true"/></a></div><p className="lw-note">Produto em preparação. Cadastro gratuito para receber o aviso de abertura.</p><div className="lw-hero-proof-preview"><VideoStage/><figure className="lw-hero-feelrun"><img src="/examples/feelrun-km.png" alt="Estudo editorial FeelRun: descobrir qual música tocou no quilômetro mais rápido da corrida." width="941" height="1672" loading="lazy"/><figcaption><strong>FeelRun</strong><span>Música, corrida e uma situação real.</span></figcaption></figure></div></section>
+
+ <section id="exemplos" className="lw-examples lw-context-examples"><div className="lw-wrap"><div className="lw-section-heading"><p className="lw-kicker">PRODUTOS DIFERENTES. CONTEXTOS DIFERENTES.</p><h2>Uma situação que<br/><span>o público reconhece.</span></h2><p>Explore os estudos. Veja para quem cada peça foi pensada e como ela se conecta ao produto.</p></div><Deck contextual/></div></section>
+
+ <section className="lw-wrap lw-problem"><p className="lw-kicker">PARA QUEM JÁ TIROU A IDEIA DO PAPEL</p><div><h2>O produto está pronto.<br/>O post ficou <span>para depois.</span></h2><div><p>Entre corrigir um bug, responder um cliente e preparar a próxima atualização, a divulgação vai ficando para amanhã.</p><p>Quando sobra um tempo, ainda é preciso escolher o assunto, escrever, montar o visual e pensar no próximo post.</p><p>A Launchwing está sendo criada para ajudar nessa rotina, começando pelo seu produto e pelas situações de quem poderia usá-lo.</p></div></div></section>
+
+ <section className="lw-editorial"><div className="lw-wrap"><div className="lw-editorial-heading"><p className="lw-kicker">UMA IDEIA PRECISA FAZER SENTIDO</p><h2>O assunto começa<br/>no seu público.</h2><p>Uma funcionalidade vira conversa quando encontra uma situação que alguém reconhece.</p></div><div className="lw-editorial-principles"><article><ScanLine aria-hidden="true"/><h3>Uma situação concreta.</h3><p>A dúvida, a descoberta ou o problema que faz alguém se interessar pelo seu produto.</p></article><article><FileImage aria-hidden="true"/><h3>Texto e visual juntos.</h3><p>A frase e a cena contam a mesma história. A reação precisa combinar com a mensagem.</p></article><article><MousePointer2 aria-hidden="true"/><h3>Um formato que cabe.</h3><p>Uma dica, um POV, um meme ou um carrossel, conforme o assunto pede.</p></article></div></div></section>
+
+ <section id="como-funciona" className="lw-wrap lw-simple-process"><div className="lw-section-heading"><p className="lw-kicker">O FLUXO QUE ESTAMOS CONSTRUINDO</p><h2>Do link à peça<br/><span>que você quer publicar.</span></h2><p>Um ponto de partida simples.<br/>Com você no controle da mensagem.</p></div><ol><li><span>01</span><div><h3>Mostre seu produto.</h3><p>O ponto de partida é a URL. Fotos, vídeos e outros materiais próprios serão opcionais.</p></div><Link2 aria-hidden="true"/></li><li><span>02</span><div><h3>Receba conteúdo com contexto.</h3><p>Texto, visual e legenda conectados ao seu produto e às situações do público, juntos para revisar.</p></div><FileImage aria-hidden="true"/></li><li><span>03</span><div><h3>Revise antes de seguir.</h3><p>Você poderá ajustar e aprovar as peças. O agendamento no Instagram está previsto e ainda precisa ser validado.</p></div><Check aria-hidden="true"/></li></ol></section>
+
+ <DemoSpace/><CaseSpace/>
+
+ <section className="lw-wrap lw-control"><div className="lw-control-mark" aria-hidden="true"><img src="/brand/symbol-blue.svg" alt="" width="150" height="150"/><span><Check size={22}/></span></div><div><p className="lw-kicker">SUA MARCA, SUA APROVAÇÃO</p><h2>A mensagem<br/>continua sendo sua.</h2><p>Sua aprovação faz parte do fluxo planejado. Você precisa reconhecer seu produto na peça, corrigir o que não ficou claro e recusar o que não combina com a sua marca.</p><a className="lw-text-link" href="#acesso">Quero acesso antecipado <ArrowUpRight size={19}/></a></div></section>
+ <TestimonialSpace/>
+ <section id="duvidas" className="lw-wrap lw-faq"><div><p className="lw-kicker">ANTES DE COMEÇAR</p><h2>O que você<br/>precisa saber.</h2></div><Accordion type="single" collapsible>{questions.map(([q,a],i)=><AccordionItem key={q} value={`question-${i}`}><AccordionTrigger>{q}</AccordionTrigger><AccordionContent>{a}</AccordionContent></AccordionItem>)}</Accordion></section>
+ <section id="acesso" className="lw-access"><div className="lw-wrap"><p className="lw-kicker">SEU PRÓXIMO CONTEÚDO</p><h2>Pode começar<br/><span>no seu produto.</span></h2><p>Cadastre seu e-mail para saber quando a Launchwing abrir.</p><Signup/><img src="/brand/symbol-citron.svg" className="lw-access-symbol" alt="" width="260" height="260"/></div></section>
+ </main>
+ <footer className="lw-wrap lw-footer"><a href="/" aria-label="Launchwing — início"><img className="lw-logo" src="/brand/logo-primary.svg" alt="Launchwing" width="568" height="128"/></a><span>Seu produto merece aparecer.</span>{review&&<a href="/layouts">Ver outros layouts <ArrowUpRight size={15}/></a>}<span>© 2026 Launchwing</span></footer>
+ </div>}

@@ -1,0 +1,131 @@
+{
+  "id": "insta-radar-assisted-2026-09-11",
+  "context": {
+    "name": "Insta Radar",
+    "description": "O Radar consulta a lista pública de seguindo de um perfil do Instagram. Na vigia, compara leituras e envia email quando identifica uma conta nova na parte consultada. A rotina é diária; a data do registro indica a leitura, não o momento exato do follow.",
+    "audience": "Adultos em contexto de relacionamento que querem entender mudanças na lista pública de seguindo do parceiro. Recorte editorial: pessoas que têm dificuldade de lembrar quem já aparecia na lista, querem reduzir a conferência manual ou precisam interpretar os registros com clareza. Não é uma conclusão sobre quem compra o produto.",
+    "situations": "1. Olhar um @ e não lembrar se ele já aparecia na lista de seguindo do parceiro.\n2. Preferir seguir o próprio dia enquanto a vigia faz a comparação diária e avisa quando encontra uma conta nova.\n3. Ver a data de um registro e confundi-la com o momento exato em que alguém começou a seguir uma conta."
+  },
+  "facts": [
+    "O produto lê a lista pública de seguindo de perfis abertos do Instagram.",
+    "As mudanças são calculadas comparando uma leitura com uma leitura anterior do mesmo perfil.",
+    "A vigia está configurada para comparar as listas diariamente.",
+    "Na vigia, o produto oferece aviso por email quando identifica conta nova na lista consultada.",
+    "A data e a hora do registro indicam quando o Radar leu a lista, não o momento exato do follow.",
+    "O Radar informa que não pede login ou senha do Instagram e não lê mensagens ou perfis privados."
+  ],
+  "sources": [
+    {
+      "url": "https://insta-radar-two.vercel.app/",
+      "label": "Home oficial atual: apresentação, consulta e rodapé",
+      "checkedAt": "2026-09-11"
+    }
+  ],
+  "pieces": [
+    {
+      "id": "insta-radar-v2-meme",
+      "format": "Meme em vídeo · 8 segundos",
+      "hook": "eu tentando lembrar quem ele já seguia",
+      "caption": "Você olha um @ e fica naquela: já estava ali ou entrou depois?\n\nO Radar compara leituras da lista pública de seguindo. Assim, você vê o que apareceu entre uma leitura e outra, sem depender só da lembrança.\n\nConheça o Insta Radar.",
+      "rationale": "O meme parte da dificuldade de lembrar um @ e usa a reação de confusão para gerar identificação. A legenda conecta a situação à comparação entre leituras da lista pública, sem atribuir intenção a um follow.",
+      "assets": [
+        {
+          "url": "/pilot/insta-radar/v2-casual/insta-radar-meme.mp4",
+          "kind": "video",
+          "alt": "Travolta confuso sobre uma foto de celular, com o texto: eu tentando lembrar quem ele já seguia",
+          "poster": "/pilot/insta-radar/v2-casual/capa.jpg"
+        }
+      ],
+      "provenance": "Composição assistida com foto encontrada no Pinterest (mockup de celular Velt) e green screen Travolta do CreatorSet. Vídeo de 8 segundos, sem áudio; versão visual aceita e preservada em 11/09/2026. Fontes com licença comercial não confirmada; template CreatorSet indicado para uso pessoal.",
+      "status": "pending",
+      "feedback": "",
+      "reviewSeconds": 0
+    },
+    {
+      "id": "insta-radar-v2-educativo",
+      "format": "Slideshow educativo · 6 slides",
+      "hook": "você abriu os seguindo dele e viu um @ que não lembrava?",
+      "caption": "A dúvida começa num @. Só que perceber uma conta, registrar uma leitura e identificar uma mudança são coisas diferentes.\n\nO Insta Radar compara leituras da lista pública, dentro da parte consultada. A data é a do registro, não a hora exata do follow.\n\nSe quiser entender melhor, vê como o Insta Radar funciona: https://insta-radar-two.vercel.app/",
+      "rationale": "Começa na dúvida sobre um @, entrega uma distinção útil no segundo slide e explica como interpretar o registro. O Insta Radar aparece no quarto slide como parte da explicação. Fotos casuais e texto preto sobre branco mantêm a linguagem de um post escrito no TikTok.",
+      "assets": [
+        {
+          "url": "/pilot/insta-radar/v2-casual/educativo/slide-01.png",
+          "kind": "image",
+          "alt": "Slide 1 de 6. você abriu os seguindo dele\ne viu um @\nque não lembrava?\n\ncalma com o\n“ele seguiu hoje”."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/educativo/slide-02.png",
+          "kind": "image",
+          "alt": "Slide 2 de 6. eu começaria por separar:\nver hoje e seguir hoje.\n\nàs vezes você só\nreparou naquela conta\npela primeira vez."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/educativo/slide-03.png",
+          "kind": "image",
+          "alt": "Slide 3 de 6. estar no topo\ntambém não conta\nquando foi o follow.\n\na posição sozinha\nnão informa dia e hora."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/educativo/slide-04.png",
+          "kind": "image",
+          "alt": "Slide 4 de 6. no Insta Radar,\n“registrado hoje”\né a data da leitura.\n\nnão é a hora exata\nem que ele seguiu."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/educativo/slide-05.png",
+          "kind": "image",
+          "alt": "Slide 5 de 6. pra saber o que mudou,\no Radar compara\nleituras da lista pública.\n\nele procura contas novas\nna parte consultada.\n\nisso precisa de\numa leitura anterior."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/educativo/slide-06.png",
+          "kind": "image",
+          "alt": "Slide 6 de 6. é isso que eu olharia:\na diferença entre\nas leituras.\n\nse quiser entender melhor,\nvê como o\nInsta Radar funciona."
+        }
+      ],
+      "provenance": "Seis fotos casuais encontradas no Pinterest com texto preto sobre fundo branco por linha. Slideshow escrito, sem áudio e sem fotos geradas por IA. Versão v2 aceita visualmente em 11/09/2026. Licenças comerciais das fotos ainda não confirmadas.",
+      "status": "pending",
+      "feedback": "",
+      "reviewSeconds": 0
+    },
+    {
+      "id": "insta-radar-v2-amiga",
+      "format": "Slideshow em tom de amiga · 6 slides",
+      "hook": "amiga, se eu visse um @ e não lembrasse se ele já tava lá...",
+      "caption": "Se bateu a dúvida sobre quem ele passou a seguir, eu começaria separando o que vi do que tô supondo.\n\nO Insta Radar pode ajudar na comparação entre registros da lista pública, na parte consultada. Isso não explica a intenção de ninguém.\n\nSe quiser entender melhor, vê como o Insta Radar funciona: https://insta-radar-two.vercel.app/",
+      "rationale": "Conselho em tom de amiga, sem precisar contar uma história: o que eu olharia primeiro, por que a memória não basta e como comparar registros. O produto entra no quarto slide, depois da ajuda inicial, e o convite final mantém o tom de conversa.",
+      "assets": [
+        {
+          "url": "/pilot/insta-radar/v2-casual/amiga/slide-01.png",
+          "kind": "image",
+          "alt": "Slide 1 de 6. amiga, se eu visse\num @ e não lembrasse\nse ele já tava lá...\n\neu começaria por isso:"
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/amiga/slide-02.png",
+          "kind": "image",
+          "alt": "Slide 2 de 6. eu não tentaria\nresolver isso de cabeça.\n\num @ que você não lembra\nnão é a mesma coisa\nque um follow novo."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/amiga/slide-03.png",
+          "kind": "image",
+          "alt": "Slide 3 de 6. pra comparar,\neu precisaria de\num registro anterior.\n\num print de agora\nnão me diz sozinho\no que mudou."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/amiga/slide-04.png",
+          "kind": "image",
+          "alt": "Slide 4 de 6. pra não fazer essa\ncomparação na mão,\neu olharia o Insta Radar.\n\nele compara registros\nda lista pública,\nna parte consultada."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/amiga/slide-05.png",
+          "kind": "image",
+          "alt": "Slide 5 de 6. e eu leria a data\ncomo data do registro.\n\nnão como a hora\nexata do follow.\n\no motivo dele seguir\nalguém é outra conversa."
+        },
+        {
+          "url": "/pilot/insta-radar/v2-casual/amiga/slide-06.png",
+          "kind": "image",
+          "alt": "Slide 6 de 6. eu começaria por entender\no que mudou,\nsem tentar adivinhar o resto.\n\nse isso te ajudaria,\nvê como o\nInsta Radar funciona."
+        }
+      ],
+      "provenance": "Seis fotos casuais encontradas no Pinterest com texto preto sobre fundo branco por linha. Slideshow escrito, sem áudio e sem fotos geradas por IA. Versão v2 aceita visualmente em 11/09/2026. Licenças comerciais das fotos ainda não confirmadas.",
+      "status": "pending",
+      "feedback": "",
+      "reviewSeconds": 0
+    }
+  ]
+}

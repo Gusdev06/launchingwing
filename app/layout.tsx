@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Launchwing — seu produto merece aparecer",
-  description: "Conteúdo para quem cria SaaS, microsaas e infoapps. Conheça a proposta da Launchwing e entre na lista de acesso antecipado.",
+  title: "Launchwing — do seu produto ao próximo conteúdo",
+  description: "Do link do seu produto a posts para o seu público. Conheça a proposta da Launchwing para apps e SaaS e entre na lista de acesso antecipado.",
   robots: { index: false, follow: false },
   other: {
     "codex-preview": "development",
