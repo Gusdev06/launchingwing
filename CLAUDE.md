@@ -13,6 +13,7 @@ npm run lint                         # eslint
 npm run db:generate                  # migração após mudar db/schema.ts (nunca aplicar em produção à mão)
 node scripts/pilot/smoke.mjs         # prova das rotas do piloto, precisa do dev rodando
 node scripts/painel/smoke.mjs        # prova das rotas do painel, idem
+node scripts/painel/arte-smoke.mjs   # geração de imagem contra RunPod falso (RUNPOD_BASE_URL em .dev.vars)
 ```
 
 Deploy: ChatGPT Sites, conta do Gustavo. Ninguém publica daqui. Entregar commit.
@@ -24,7 +25,8 @@ Deploy: ChatGPT Sites, conta do Gustavo. Ninguém publica daqui. Entregar commit
 - `lib/pilot-store.ts` padrão de gravação no D1: linha por dono, `revision` confere antes de gravar, 409 se mudou.
 - `lib/pilot-engine.ts` gerador privado (Claude e Apify) fora deste repo, via `LAUNCHWING_ENGINE_URL` e token. Não dá para testar aqui.
 - `app/piloto/frontend/` painel de 14 telas. `model.ts` tipos e dados iniciais. `workspace.tsx` estado e gravação.
-- `db/schema.ts` e `drizzle/` esquema e migrações.
+- `lib/runpod.ts` cliente do RunPod (imagem por IA). Chaves em `.dev.vars` (modelo em `.dev.vars.example`), nunca no git.
+- `db/schema.ts` e `drizzle/` esquema e migrações. Aplicar no D1 local: `sed 's/--> statement-breakpoint//' drizzle/000N_*.sql | sqlite3 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/*.sqlite`.
 - `scripts/pilot/*.mjs` provas por execução contra o dev local.
 
 ## Decisões

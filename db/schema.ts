@@ -36,3 +36,18 @@ export const workspaceFileChunks=sqliteTable('workspace_file_chunks',{
  seq:integer('seq').notNull(),
  bytes:blob('bytes',{mode:'buffer'}).notNull(),
 },table=>[primaryKey({columns:[table.fileId,table.seq]})]);
+export const artJobs=sqliteTable('art_jobs',{
+ id:text('id').primaryKey(),
+ ownerId:text('owner_id').notNull(),
+ workspaceKey:text('workspace_key').notNull(),
+ runpodId:text('runpod_id').notNull(),
+ status:text('status').notNull(),
+ prompt:text('prompt').notNull(),
+ width:integer('width').notNull(),
+ height:integer('height').notNull(),
+ seed:integer('seed').notNull(),
+ fileId:text('file_id'),
+ error:text('error'),
+ createdAt:text('created_at').notNull(),
+ updatedAt:text('updated_at').notNull(),
+},table=>[index('idx_art_jobs_owner_created').on(table.ownerId,table.createdAt)]);

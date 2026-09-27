@@ -1,0 +1,9 @@
+# Copie para .dev.vars para o dev local. Em producao, as mesmas chaves vao nas variaveis do Sites.
+# Geracao de imagem por IA (RunPod Serverless, conta do Gustavo). Sem elas o botao avisa que nao esta conectado.
+RUNPOD_API_KEY=
+RUNPOD_KREA2_ENDPOINT_ID=t8n6hkcx0pz66w
+# So para teste: aponta para o RunPod falso de scripts/painel/arte-smoke.mjs
+# RUNPOD_BASE_URL=http://127.0.0.1:8790
+# Gerador privado do piloto (fora deste repositorio)
+LAUNCHWING_ENGINE_URL=
+LAUNCHWING_ENGINE_TOKEN=

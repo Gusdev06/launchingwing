@@ -45,3 +45,8 @@ next-env.d.ts
 /work/
 
 *.tsbuildinfo
+
+# variaveis locais do worker (cloudflare vite plugin)
+.dev.vars*
+!.dev.vars.example
+/outputs/
