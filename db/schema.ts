@@ -46,6 +46,8 @@ export const artJobs=sqliteTable('art_jobs',{
  width:integer('width').notNull(),
  height:integer('height').notNull(),
  seed:integer('seed').notNull(),
+ kind:text('kind').notNull().default('imagem'),
+ duration:integer('duration'),
  fileId:text('file_id'),
  error:text('error'),
  createdAt:text('created_at').notNull(),

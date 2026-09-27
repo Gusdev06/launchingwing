@@ -29,6 +29,13 @@
       "when": 1790521430483,
       "tag": "0003_keen_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790549047453,
+      "tag": "0004_pretty_vermin",
+      "breakpoints": true
     }
   ]
 }

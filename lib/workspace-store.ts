@@ -38,20 +38,20 @@ export async function findFile(owner:string,id:string):Promise<StoredFile|null>{
 export async function readChunk(id:string,seq:number):Promise<ArrayBuffer|null>{
  const row=await db().prepare('SELECT bytes FROM workspace_file_chunks WHERE file_id=? AND seq=?').bind(id,seq).first<{bytes:ArrayBuffer}>();return row?row.bytes:null;
 }
-export type ArtJob={id:string;workspaceKey:string;runpodId:string;status:'na_fila'|'gerando'|'pronto'|'erro';prompt:string;width:number;height:number;seed:number;fileId:string|null;error:string|null;createdAt:string;updatedAt:string};
-type ArtRow={id:string;workspace_key:string;runpod_id:string;status:ArtJob['status'];prompt:string;width:number;height:number;seed:number;file_id:string|null;error:string|null;created_at:string;updated_at:string};
-function decodeArt(r:ArtRow):ArtJob{return {id:r.id,workspaceKey:r.workspace_key,runpodId:r.runpod_id,status:r.status,prompt:r.prompt,width:r.width,height:r.height,seed:r.seed,fileId:r.file_id,error:r.error,createdAt:r.created_at,updatedAt:r.updated_at}}
-export async function countArtJobsToday(owner:string){
+export type ArtJob={id:string;workspaceKey:string;runpodId:string;kind:'imagem'|'video';duration:number|null;status:'na_fila'|'gerando'|'pronto'|'erro';prompt:string;width:number;height:number;seed:number;fileId:string|null;error:string|null;createdAt:string;updatedAt:string};
+type ArtRow={id:string;workspace_key:string;runpod_id:string;kind:'imagem'|'video';duration:number|null;status:ArtJob['status'];prompt:string;width:number;height:number;seed:number;file_id:string|null;error:string|null;created_at:string;updated_at:string};
+function decodeArt(r:ArtRow):ArtJob{return {id:r.id,workspaceKey:r.workspace_key,runpodId:r.runpod_id,kind:r.kind,duration:r.duration,status:r.status,prompt:r.prompt,width:r.width,height:r.height,seed:r.seed,fileId:r.file_id,error:r.error,createdAt:r.created_at,updatedAt:r.updated_at}}
+export async function countArtJobsToday(owner:string,kind:'imagem'|'video'){
  const since=new Date(Date.now()-86400000).toISOString();
- const row=await db().prepare('SELECT COUNT(*) AS n FROM art_jobs WHERE owner_id=? AND created_at>=?').bind(owner,since).first<{n:number}>();return row?.n??0;
+ const row=await db().prepare('SELECT COUNT(*) AS n FROM art_jobs WHERE owner_id=? AND kind=? AND created_at>=?').bind(owner,kind,since).first<{n:number}>();return row?.n??0;
 }
-export async function createArtJob(owner:string,key:string,job:{runpodId:string;prompt:string;width:number;height:number;seed:number}):Promise<ArtJob>{
+export async function createArtJob(owner:string,key:string,job:{runpodId:string;kind:'imagem'|'video';duration:number|null;prompt:string;width:number;height:number;seed:number}):Promise<ArtJob>{
  const id=crypto.randomUUID(),now=new Date().toISOString();
- await db().prepare('INSERT INTO art_jobs (id,owner_id,workspace_key,runpod_id,status,prompt,width,height,seed,file_id,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,NULL,NULL,?,?)').bind(id,owner,key,job.runpodId,'na_fila',job.prompt,job.width,job.height,job.seed,now,now).run();
+ await db().prepare('INSERT INTO art_jobs (id,owner_id,workspace_key,runpod_id,kind,duration,status,prompt,width,height,seed,file_id,error,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,?,?)').bind(id,owner,key,job.runpodId,job.kind,job.duration,'na_fila',job.prompt,job.width,job.height,job.seed,now,now).run();
  return {id,workspaceKey:key,...job,status:'na_fila',fileId:null,error:null,createdAt:now,updatedAt:now};
 }
 export async function findArtJob(owner:string,id:string):Promise<ArtJob|null>{
- const row=await db().prepare('SELECT id,workspace_key,runpod_id,status,prompt,width,height,seed,file_id,error,created_at,updated_at FROM art_jobs WHERE owner_id=? AND id=?').bind(owner,id).first<ArtRow>();return row?decodeArt(row):null;
+ const row=await db().prepare('SELECT id,workspace_key,runpod_id,kind,duration,status,prompt,width,height,seed,file_id,error,created_at,updated_at FROM art_jobs WHERE owner_id=? AND id=?').bind(owner,id).first<ArtRow>();return row?decodeArt(row):null;
 }
 export async function updateArtJob(owner:string,id:string,patch:{status:ArtJob['status'];fileId?:string|null;error?:string|null}){
  await db().prepare('UPDATE art_jobs SET status=?,file_id=COALESCE(?,file_id),error=?,updated_at=? WHERE owner_id=? AND id=?').bind(patch.status,patch.fileId??null,patch.error??null,new Date().toISOString(),owner,id).run();

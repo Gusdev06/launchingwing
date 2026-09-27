@@ -3,14 +3,16 @@
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 const base='http://localhost:5173';
+const MP4=Buffer.concat([Buffer.from('0000001c667479706d703432','hex'),Buffer.alloc(4000,7)]);
 const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==','base64');
 const jobs=new Map();let runs=0;const inputs=[];
 const fake=createServer((req,res)=>{
  const auth=req.headers.authorization;if(auth!=='Bearer chave-falsa-local'){res.writeHead(401);res.end('{"error":"sem chave"}');return}
  const send=(code,body)=>{res.writeHead(code,{'content-type':'application/json'});res.end(JSON.stringify(body))};
+ if(req.method==='POST'&&req.url==='/endpoint-video-falso/run'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{const {input}=JSON.parse(body);const wf=input.workflow;if(!wf||wf['5'].class_type!=='MiniMaxH3ImageToVideo'||wf['14'].class_type!=='SaveVideo'||typeof wf['5'].inputs.length!=='number'){send(400,{error:'workflow de video inesperado'});return}inputs.push(input);const id=`fakev-${++runs}`;jobs.set(id,{polls:0,prompt:wf['5'].inputs.prompt,video:true});send(200,{id,status:'IN_QUEUE'})});return}
  if(req.method==='POST'&&req.url==='/endpoint-falso/run'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{const {input}=JSON.parse(body);const wf=input.workflow;if(!wf||wf['4'].class_type!=='CLIPTextEncode'||typeof wf['4'].inputs.text!=='string'||(wf['6']??wf['14']).inputs.width!==1024){send(400,{error:'workflow inesperado'});return}inputs.push(input);const id=`fake-${++runs}`;jobs.set(id,{polls:0,prompt:wf['4'].inputs.text});send(200,{id,status:'IN_QUEUE'})});return}
- const m=req.url.match(/^\/endpoint-falso\/status\/(.+)$/);
- if(m){const j=jobs.get(m[1]);if(!j){send(404,{error:'nao existe'});return}j.polls++;if(j.prompt.includes('FALHAR')){send(200,{id:m[1],status:'FAILED',error:'boom'});return}if(j.polls===1){send(200,{id:m[1],status:'IN_PROGRESS'});return}send(200,{id:m[1],status:'COMPLETED',output:{images:[{filename:'krea2_00001_.png',type:'base64',data:PNG.toString('base64')}]},delayTime:1200,executionTime:7000});return}
+ const m=req.url.match(/^\/endpoint(?:-video)?-falso\/status\/(.+)$/);
+ if(m){const j=jobs.get(m[1]);if(!j){send(404,{error:'nao existe'});return}j.polls++;if(j.prompt.includes('FALHAR')){send(200,{id:m[1],status:'FAILED',error:'boom'});return}if(j.polls===1){send(200,{id:m[1],status:'IN_PROGRESS'});return}send(200,{id:m[1],status:'COMPLETED',output:{images:j.video?[{filename:'video/minimax_h3_00001_.mp4',type:'base64',data:MP4.toString('base64')}]:[{filename:'krea2_00001_.png',type:'base64',data:PNG.toString('base64')}]},delayTime:1200,executionTime:7000});return}
  send(404,{error:'rota'});
 });
 await new Promise(r=>fake.listen(8790,'127.0.0.1',r));
@@ -24,7 +26,7 @@ async function call(path,{method='GET',body,auth=true,origin=base,raw}={}){
 const chave=`arte-${crypto.randomUUID()}`;const marks=[];
 try{
  assert.equal((await call('/api/painel/arte',{auth:false})).status,401);marks.push('anonymous_blocked');
- const info=await call('/api/painel/arte');assert.equal(info.status,200);assert.equal(info.data.conectado,true);marks.push('connected_reported');
+ const info=await call('/api/painel/arte');assert.equal(info.status,200);assert.equal(info.data.conectado,true);assert.equal(info.data.video,true);marks.push('connected_reported');
  assert.equal((await call('/api/painel/arte',{method:'POST',origin:'https://example.com',body:{chave,prompt:'gato'}})).status,403);marks.push('cross_origin_blocked');
  assert.equal((await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'ab'}})).status,400);marks.push('short_prompt_rejected');
  const started=await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'um gato astronauta na lua',tamanho:'1:1'}});assert.equal(started.status,201);assert.equal(started.data.job.status,'na_fila');marks.push('job_started_at_runpod');
@@ -44,6 +46,11 @@ try{
  const {readFileSync}=await import('node:fs');assert.ok(Buffer.from(sent.images[0].image,'base64').equals(readFileSync('public/workspace/01-celular-cafe-cama.jpg')),'foto enviada byte a byte');marks.push('image_to_image_sends_photo');
  const ownFile=await fetch(`${base}/api/painel/arquivo?chave=${chave}`,{method:'POST',headers:{Cookie:cookie,Origin:base,'Content-Type':'image/png','X-Nome':'minha.png'},body:PNG});assert.equal(ownFile.status,201);const ownUrl=(await ownFile.json()).url;
  const fromOwn=await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'a partir do meu arquivo',imagemUrl:ownUrl}});assert.equal(fromOwn.status,201);assert.ok(Buffer.from(inputs.at(-1).images[0].image,'base64').equals(PNG));assert.equal(inputs.at(-1).workflow['7'].inputs.denoise,0.65);marks.push('image_to_image_from_own_file');
+ assert.equal((await call('/api/painel/arte',{method:'POST',body:{chave,tipo:'video',prompt:'dog running on the beach, waves sound',duracaoS:20}})).status,400);marks.push('video_duration_out_of_range_rejected');
+ const vid=await call('/api/painel/arte',{method:'POST',body:{chave,tipo:'video',prompt:'dog running on the beach, waves sound',tamanho:'9:16',duracaoS:5,imagemUrl:'/workspace/01-celular-cafe-cama.jpg'}});assert.equal(vid.status,201);assert.equal(vid.data.job.tipo,'video');
+ const vsent=inputs.at(-1);assert.equal(vsent.workflow['5'].inputs.width,480);assert.equal(vsent.workflow['5'].inputs.height,864);assert.equal(vsent.workflow['5'].inputs.length,124);assert.deepEqual(vsent.workflow['5'].inputs.first_frame,['16',0]);assert.equal(vsent.images.length,1);marks.push('video_job_started_with_first_frame');
+ assert.equal((await call(`/api/painel/arte/${vid.data.job.id}`)).data.job.status,'gerando');
+ const vdone=await call(`/api/painel/arte/${vid.data.job.id}`);assert.equal(vdone.data.job.status,'pronto');const vfile=await call(vdone.data.job.url,{raw:true});assert.equal(vfile.status,200);assert.equal(vfile.type,'video/mp4');assert.ok(vfile.bytes.equals(MP4));marks.push('video_stored_and_served_as_mp4');
  assert.equal((await call(`/api/painel?chave=${chave}`,{method:'DELETE'})).status,200);assert.equal((await call(second.data.job.url,{raw:true})).status,404);marks.push('delete_removes_generated_files');
  console.log(JSON.stringify({passed:marks,runpodRuns:runs}));
 }catch(error){console.error(JSON.stringify({passed:marks}));await call(`/api/painel?chave=${chave}`,{method:'DELETE'}).catch(()=>{});throw error}
