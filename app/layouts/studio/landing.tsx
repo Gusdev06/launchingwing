@@ -1,4 +1,5 @@
 "use client";
+import Link from 'next/link';
 
 import {ArrowDown,ArrowRight,ArrowUpRight,Check,FileImage,Film,Link2,MessageSquare,MousePointer2,PanelTop,ScanLine} from 'lucide-react';
 import {Button} from '@/components/ui/button';
@@ -22,7 +23,7 @@ function BrowserBar({label}:{label:string}){return <div className="lw-proof-brow
 
 function DemoSpace(){return <section className="lw-wrap lw-proof-demo" aria-labelledby="demo-title" data-proof-slot="product-demo">
  <div className="lw-proof-intro"><p className="lw-kicker">EXPERIMENTE O PRIMEIRO CASO</p><h2 id="demo-title">Do link à revisão das peças.</h2><p>Abra o caso assistido da GERAEW e experimente a revisão.</p></div>
- <div className="lw-demo-window"><BrowserBar label="Launchwing / piloto privado"/><div className="lw-demo-canvas"><div className="lw-demo-ghosts" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><GhostLines/></div>)}</div><div className="lw-demo-center"><span className="lw-proof-icon"><Film aria-hidden="true"/></span><strong>Um caso para experimentar.</strong><p>Contexto, três peças e sua decisão sobre cada uma.</p><Button asChild className="lw-cta"><a href="/cadastro">Abrir piloto privado <ArrowUpRight aria-hidden="true"/></a></Button><p className="lw-note">Cadastro, quiz e geração disponíveis no teste local.</p></div></div><div className="lw-demo-footer"><span><Link2/> Seu produto</span><ArrowRight/><span><FileImage/> As peças</span><ArrowRight/><span><Check/> Sua revisão</span></div></div>
+ <div className="lw-demo-window"><BrowserBar label="Launchwing / piloto privado"/><div className="lw-demo-canvas"><div className="lw-demo-ghosts" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><GhostLines/></div>)}</div><div className="lw-demo-center"><span className="lw-proof-icon"><Film aria-hidden="true"/></span><strong>Um caso para experimentar.</strong><p>Contexto, três peças e sua decisão sobre cada uma.</p><Button asChild className="lw-cta"><Link href="/cadastro">Abrir piloto privado <ArrowUpRight aria-hidden="true"/></Link></Button><p className="lw-note">Cadastro, quiz e geração disponíveis no teste local.</p></div></div><div className="lw-demo-footer"><span><Link2/> Seu produto</span><ArrowRight/><span><FileImage/> As peças</span><ArrowRight/><span><Check/> Sua revisão</span></div></div>
  </section>}
 
 function CaseSpace(){return <section className="lw-wrap lw-proof-case" aria-labelledby="case-title" data-proof-slot="pilot-case">
@@ -34,7 +35,7 @@ function TestimonialSpace(){return <section className="lw-wrap lw-proof-story" a
 
 export function StudioLanding({review=false}:{review?:boolean}){return <div className="lw lw-studio lw-v7">
  <a className="lw-skip" href="#conteudo">Pular para o conteúdo</a>
- <header className="lw-wrap lw-nav"><a href="/" aria-label="Launchwing — início"><img className="lw-logo" src="/brand/logo-primary.svg" alt="Launchwing" width="568" height="128"/></a><nav aria-label="Navegação principal"><a href="#exemplos">O conteúdo</a><a href="#como-funciona">Como funciona</a><a href="#duvidas">Dúvidas</a></nav><AccessButton/></header>
+ <header className="lw-wrap lw-nav"><Link href="/" aria-label="Launchwing — início"><img className="lw-logo" src="/brand/logo-primary.svg" alt="Launchwing" width="568" height="128"/></Link><nav aria-label="Navegação principal"><a href="#exemplos">O conteúdo</a><a href="#como-funciona">Como funciona</a><a href="#duvidas">Dúvidas</a></nav><AccessButton/></header>
  <main id="conteudo">
  <section className="lw-wrap lw-studio-hero"><p className="lw-badge">PARA QUEM JÁ COLOCOU UM APP OU SAAS NO AR</p><h1>Do link do seu produto<br/>{' '}<span>a posts para o seu público.</span></h1><p className="lw-hero-description">Estamos criando a Launchwing para preparar texto, visual e legenda a partir do seu link. Você revisa as peças; fotos e vídeos próprios são opcionais.</p><div className="lw-hero-cta-row"><AccessButton/><a className="lw-secondary-cta" href="#exemplos">Ver exemplos de conteúdo <ArrowDown aria-hidden="true"/></a></div><p className="lw-note">Produto em preparação. Cadastro gratuito para receber o aviso de abertura.</p><div className="lw-hero-proof-preview"><VideoStage/><figure className="lw-hero-feelrun"><img src="/examples/feelrun-km.png" alt="Estudo editorial FeelRun: descobrir qual música tocou no quilômetro mais rápido da corrida." width="941" height="1672" loading="lazy"/><figcaption><strong>FeelRun</strong><span>Música, corrida e uma situação real.</span></figcaption></figure></div></section>
 
@@ -53,5 +54,5 @@ export function StudioLanding({review=false}:{review?:boolean}){return <div clas
  <section id="duvidas" className="lw-wrap lw-faq"><div><p className="lw-kicker">ANTES DE COMEÇAR</p><h2>O que você<br/>precisa saber.</h2></div><Accordion type="single" collapsible>{questions.map(([q,a],i)=><AccordionItem key={q} value={`question-${i}`}><AccordionTrigger>{q}</AccordionTrigger><AccordionContent>{a}</AccordionContent></AccordionItem>)}</Accordion></section>
  <section id="acesso" className="lw-access"><div className="lw-wrap"><p className="lw-kicker">SEU PRÓXIMO CONTEÚDO</p><h2>Pode começar<br/><span>no seu produto.</span></h2><p>Cadastre seu e-mail para saber quando a Launchwing abrir.</p><Signup/><img src="/brand/symbol-citron.svg" className="lw-access-symbol" alt="" width="260" height="260"/></div></section>
  </main>
- <footer className="lw-wrap lw-footer"><a href="/" aria-label="Launchwing — início"><img className="lw-logo" src="/brand/logo-primary.svg" alt="Launchwing" width="568" height="128"/></a><span>Seu produto merece aparecer.</span>{review&&<a href="/layouts">Ver outros layouts <ArrowUpRight size={15}/></a>}<span>© 2026 Launchwing</span></footer>
+ <footer className="lw-wrap lw-footer"><Link href="/" aria-label="Launchwing — início"><img className="lw-logo" src="/brand/logo-primary.svg" alt="Launchwing" width="568" height="128"/></Link><span>Seu produto merece aparecer.</span>{review&&<Link href="/layouts">Ver outros layouts <ArrowUpRight size={15}/></Link>}<span>© 2026 Launchwing</span></footer>
  </div>}
