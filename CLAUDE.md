@@ -14,6 +14,7 @@ npm run db:generate                  # migração após mudar db/schema.ts (nunc
 node scripts/pilot/smoke.mjs         # prova das rotas do piloto, precisa do dev rodando
 node scripts/painel/smoke.mjs        # prova das rotas do painel, idem
 node scripts/painel/arte-smoke.mjs   # geração de imagem contra RunPod falso (RUNPOD_BASE_URL em .dev.vars)
+node scripts/painel/export-smoke.mjs # pacote ZIP do painel, sem servidor
 ```
 
 Deploy: ChatGPT Sites, conta do Gustavo. Ninguém publica daqui. Entregar commit.
