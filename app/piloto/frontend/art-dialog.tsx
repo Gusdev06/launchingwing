@@ -9,6 +9,13 @@ const legenda:Record<Job['status'],string>={na_fila:'Na fila. Se o servidor esta
 const tamanhosVideo=[['16:9','Paisagem 16:9'],['9:16','Vertical 9:16'],['1:1','Quadrado 1:1']] as const;
 export type Tipo='imagem'|'video';
 function Field({label,hint,children}:{label:string;hint?:string;children:ReactNode}){return <label className="fw-field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>}
+// Foto da biblioteca pública do site vira arquivo da conta antes de servir de ponto de partida.
+async function garantirNaConta(chave:string,src:string){
+ if(src.startsWith('/api/painel/arquivo/'))return src;
+ const blob=await(await fetch(src)).blob();
+ const response=await fetch(`/api/painel/arquivo?chave=${encodeURIComponent(chave)}`,{method:'POST',headers:{'Content-Type':blob.type||'image/jpeg','X-Nome':encodeURIComponent(src.split('/').pop()||'foto')},body:blob});
+ return (await json<{url:string}>(response)).url;
+}
 async function json<T>(response:Response):Promise<T>{const body=await response.json().catch(()=>null) as (T&{error?:string})|null;if(!response.ok||!body)throw new Error(body?.error||'Não foi possível falar com o servidor.');return body}
 // Gera uma imagem por IA (RunPod, conta do Gustavo) e devolve a URL do arquivo salvo na conta.
 export type Fonte={name:string;src:string};
@@ -23,7 +30,7 @@ function ArtForm({chave,initialPrompt,onUse,close,sourceImage,library,tipo}:{cha
  const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
  useEffect(()=>{let live=true;fetch('/api/painel/arte').then(r=>json<{conectado:boolean;video:boolean}>(r)).then(i=>{if(live)setConnected(video?i.video:i.conectado)}).catch(()=>{if(live)setConnected(false)});return()=>{live=false}},[]);
  useEffect(()=>{if(!job||job.status==='pronto'||job.status==='erro')return;timer.current=setTimeout(()=>{fetch(`/api/painel/arte/${job.id}`).then(r=>json<{job:Job}>(r)).then(({job})=>setJob(job)).catch(e=>{setError(e instanceof Error?e.message:'Falha ao consultar.');setJob(j=>j?{...j,status:'erro'}:j)})},3000);return()=>{if(timer.current)clearTimeout(timer.current)}},[job]);
- async function generate(){if(busy)return;setBusy(true);setError('');setJob(null);try{const {job}=await json<{job:Job}>(await fetch('/api/painel/arte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chave,tipo,prompt,tamanho,...(video?{duracaoS:duracao}:{}),...(origem?{imagemUrl:origem,forca:forca/100}:{})})}));setJob({...job,url:null,error:null})}catch(e){setError(e instanceof Error?e.message:'Não foi possível iniciar.')}finally{setBusy(false)}}
+ async function generate(){if(busy)return;setBusy(true);setError('');setJob(null);try{const imagemUrl=origem?await garantirNaConta(chave,origem):'';const {job}=await json<{job:Job}>(await fetch('/api/painel/arte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chave,tipo,prompt,tamanho,...(video?{duracaoS:duracao}:{}),...(imagemUrl?{imagemUrl,forca:forca/100}:{})})}));setJob({...job,url:null,error:null})}catch(e){setError(e instanceof Error?e.message:'Não foi possível iniciar.')}finally{setBusy(false)}}
  const working=!!job&&(job.status==='na_fila'||job.status==='gerando');
  return <DialogContent className="fw-dialog fw-wide-dialog" onInteractOutside={e=>{if(working)e.preventDefault()}}><DialogTitle>{video?'Criar vídeo com IA':'Criar imagem com IA'}</DialogTitle><DialogDescription>{video?'Descreva a cena e o som. O vídeo com áudio entra na sua galeria e vira o vídeo deste conteúdo. Leva de 1 a 4 minutos.':'Descreva a cena. A imagem entra na sua galeria e substitui a foto deste slide.'}</DialogDescription>
   {connected===false&&<p className="fw-alert" role="alert">{video?'A geração de vídeo ainda não está conectada nesta conta.':'A geração de imagem ainda não está conectada nesta conta.'}</p>}

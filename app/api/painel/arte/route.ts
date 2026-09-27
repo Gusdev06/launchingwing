@@ -8,13 +8,13 @@ export const TETO_DIARIO=60,TETO_DIARIO_VIDEO=20;
 const bodySchema=z.object({chave:keySchema,prompt:z.string().trim().min(3,'Descreva a imagem com pelo menos 3 letras.').max(1500),tipo:z.enum(['imagem','video']).default('imagem'),duracaoS:z.number().int().min(2).max(15).default(5),tamanho:z.enum(['1:1','9:16','4:5','16:9']).default('1:1'),imagemUrl:z.string().max(2000).optional(),forca:z.number().min(0.1).max(1).default(0.65)});
 const MAX_INICIAL=6*1024*1024;
 function base64(bytes:Uint8Array){let out='';for(let i=0;i<bytes.length;i+=0x8000)out+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(out)}
-// A foto de partida vem da conta (arquivo do dono) ou da biblioteca pública do site; nunca de URL externa.
-async function fotoInicial(owner:string,url:string,request:Request){
+// A foto de partida vem sempre de um arquivo da conta: um Worker não busca a própria URL com segurança,
+// então o navegador sobe a foto pública como arquivo antes de pedir a geração.
+async function fotoInicial(owner:string,url:string){
  const own=url.match(/^\/api\/painel\/arquivo\/([0-9a-f-]{36})$/);
- let mime:string,bytes:Uint8Array;
- if(own){const file=await readFileBytes(owner,own[1]);if(!file)throw new Error('A foto escolhida não está na sua conta.');mime=file.mime;bytes=file.bytes}
- else if(/^\/(workspace|pilot|examples)\/[a-zA-Z0-9/_.-]+\.(png|jpe?g|webp)$/i.test(url)){const r=await fetch(new URL(url,request.url));if(!r.ok)throw new Error('Não foi possível ler a foto escolhida.');mime=r.headers.get('content-type')?.split(';')[0]||'';bytes=new Uint8Array(await r.arrayBuffer())}
- else throw new Error('Escolha uma foto da sua galeria como ponto de partida.');
+ if(!own)throw new Error('Escolha uma foto da sua galeria como ponto de partida.');
+ const file=await readFileBytes(owner,own[1]);if(!file)throw new Error('A foto escolhida não está na sua conta.');
+ const {mime,bytes}=file;
  if(!/^image\/(png|jpeg|webp)$/.test(mime))throw new Error('A foto de partida precisa ser PNG, JPG ou WebP.');
  if(bytes.byteLength>MAX_INICIAL)throw new Error('A foto de partida passa de 6 MB. Use uma menor.');
  return base64(bytes);
@@ -33,7 +33,7 @@ export async function POST(request:Request){
   if(!config||!config.endpoints[tipo])return Response.json({error:tipo==='video'?'A geração de vídeo ainda não está conectada nesta conta.':'A geração de imagem ainda não está conectada nesta conta.'},{status:503,headers:pilotHeaders});
   const teto=tipo==='video'?TETO_DIARIO_VIDEO:TETO_DIARIO;
   if(await countArtJobsToday(owner,tipo)>=teto)return Response.json({error:`Você chegou ao limite de ${teto} ${tipo==='video'?'vídeos':'imagens'} em 24 horas. Tente amanhã.`},{status:429,headers:pilotHeaders});
-  let foto;if(parsed.data.imagemUrl){try{foto=await fotoInicial(owner,parsed.data.imagemUrl,request)}catch(error){return Response.json({error:error instanceof Error?error.message:'Foto de partida inválida.'},{status:400,headers:pilotHeaders})}}
+  let foto;if(parsed.data.imagemUrl){try{foto=await fotoInicial(owner,parsed.data.imagemUrl)}catch(error){return Response.json({error:error instanceof Error?error.message:'Foto de partida inválida.'},{status:400,headers:pilotHeaders})}}
   let built;
   if(tipo==='video'){const key=parsed.data.tamanho==='9:16'?'9:16':parsed.data.tamanho==='1:1'?'1:1':'16:9';const [width,height]=TAMANHOS_VIDEO[key];const v=workflowVideo({prompt:parsed.data.prompt,width,height,duracaoS:parsed.data.duracaoS,primeiroQuadro:foto});built={...v,width,height,duration:parsed.data.duracaoS}}
   else{const [width,height]=TAMANHOS_IMAGEM[parsed.data.tamanho];const i=workflowImagem({prompt:parsed.data.prompt,width,height,inicial:foto?{base64:foto,forca:parsed.data.forca}:undefined});built={...i,width,height,duration:null}}

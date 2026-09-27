@@ -13,7 +13,7 @@ export async function POST(request:Request){
  const mime=(request.headers.get('Content-Type')||'').split(';')[0].trim().toLowerCase();
  if(!fileMimes.has(mime)){await request.body?.cancel();return Response.json({error:'Use JPG, PNG, WebP, GIF, MP4 ou WebM.'},{status:415,headers:pilotHeaders})}
  const chave=keySchema.safeParse(new URL(request.url).searchParams.get('chave')||'preview');if(!chave.success)return Response.json({error:'Chave do espaço inválida.'},{status:400,headers:pilotHeaders});
- const name=decodeURIComponent(request.headers.get('X-Nome')||'arquivo').slice(0,200);
+ let name='arquivo';try{name=decodeURIComponent(request.headers.get('X-Nome')||'arquivo').slice(0,200)||'arquivo'}catch{await request.body?.cancel();return Response.json({error:'Nome do arquivo inválido.'},{status:400,headers:pilotHeaders})}
  let bytes:Uint8Array;try{bytes=await readBytes(request)}catch(error){return Response.json({error:error instanceof Error?error.message:'Envio inválido.'},{status:413,headers:pilotHeaders})}
  try{const file=await createFile(owner,chave.data,name,mime,bytes);return Response.json({id:file.id,url:`/api/painel/arquivo/${file.id}`,size:file.size},{status:201,headers:pilotHeaders})}
  catch{console.error('Workspace file save unavailable');return Response.json({error:'Não foi possível guardar o arquivo. Tente novamente.'},{status:503,headers:pilotHeaders})}
