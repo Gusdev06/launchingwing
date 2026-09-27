@@ -10,11 +10,12 @@ export function runpodConfig():Config|null{
  if(!e.RUNPOD_API_KEY||!e.RUNPOD_KREA2_ENDPOINT_ID)return null;
  return {apiKey:e.RUNPOD_API_KEY,endpoint:e.RUNPOD_KREA2_ENDPOINT_ID,base:(e.RUNPOD_BASE_URL||'https://api.runpod.ai/v2').replace(/\/$/,'')};
 }
-export function workflowImagem({prompt,width,height,seed}:{prompt:string;width:number;height:number;seed?:number}){
+export type ImagemInicial={base64:string;forca:number};
+export function workflowImagem({prompt,width,height,seed,inicial}:{prompt:string;width:number;height:number;seed?:number;inicial?:ImagemInicial}){
  const texto=prompt.trim();if(!texto)throw new Error('Descreva a imagem que você quer.');
  for(const v of [width,height]){if(!Number.isInteger(v)||v<512||v>2048||v%16)throw new Error('Tamanho inválido: lados entre 512 e 2048, múltiplos de 16.')}
  const s=seed??Math.floor(Math.random()*MAX_SEED);
- const workflow={
+ const workflow:Record<string,{class_type:string;inputs:Record<string,unknown>}>={
   '1':{class_type:'UNETLoader',inputs:{unet_name:MODELO.difusao,weight_dtype:'default'}},
   '2':{class_type:'CLIPLoader',inputs:{clip_name:MODELO.textEncoder,type:'krea2',device:'default'}},
   '3':{class_type:'VAELoader',inputs:{vae_name:MODELO.vae}},
@@ -25,15 +26,26 @@ export function workflowImagem({prompt,width,height,seed}:{prompt:string;width:n
   '8':{class_type:'VAEDecode',inputs:{samples:['7',0],vae:['3',0]}},
   '9':{class_type:'SaveImage',inputs:{images:['8',0],filename_prefix:'krea2'}},
  };
- return {workflow,seed:s};
+ const images:{name:string;image:string}[]=[];
+ if(inicial){
+  if(!(inicial.forca>=0.1&&inicial.forca<=1))throw new Error('Quanto mudar deve ficar entre 10% e 100%.');
+  // Imagem para imagem: a foto é redimensionada, codificada pelo VAE e entra no KSampler no lugar do latente vazio.
+  const name=`inicial_${s}.png`;images.push({name,image:inicial.base64});
+  const wf=workflow as Record<string,{class_type:string;inputs:Record<string,unknown>}>;
+  wf['13']={class_type:'LoadImage',inputs:{image:name}};
+  wf['14']={class_type:'ImageScale',inputs:{image:['13',0],upscale_method:'lanczos',width,height,crop:'center'}};
+  wf['15']={class_type:'VAEEncode',inputs:{pixels:['14',0],vae:['3',0]}};
+  wf['7'].inputs.latent_image=['15',0];wf['7'].inputs.denoise=inicial.forca;delete wf['6'];
+ }
+ return {workflow,seed:s,images};
 }
 async function call(config:Config,path:string,init?:RequestInit){
  const response=await fetch(`${config.base}/${config.endpoint}${path}`,{...init,headers:{'content-type':'application/json',authorization:`Bearer ${config.apiKey}`,...init?.headers},signal:AbortSignal.timeout(20000)});
  if(!response.ok)throw new Error(`RunPod respondeu ${response.status}: ${(await response.text()).slice(0,300)}`);
  return response.json();
 }
-export async function iniciarImagem(config:Config,workflow:unknown):Promise<string>{
- const {id}=await call(config,'/run',{method:'POST',body:JSON.stringify({input:{workflow}})}) as {id:string};
+export async function iniciarImagem(config:Config,workflow:unknown,images:{name:string;image:string}[]=[]):Promise<string>{
+ const {id}=await call(config,'/run',{method:'POST',body:JSON.stringify({input:{workflow,...(images.length?{images}:{})}})}) as {id:string};
  if(!id)throw new Error('RunPod não devolveu o id do pedido.');return id;
 }
 export type RunPodStatus={status:'IN_QUEUE'|'IN_PROGRESS'|'COMPLETED'|'FAILED'|'CANCELLED'|'TIMED_OUT';output?:{images?:{filename:string;type:string;data:string}[]};error?:unknown;delayTime?:number;executionTime?:number};

@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 const base='http://localhost:5173';
 const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==','base64');
-const jobs=new Map();let runs=0;
+const jobs=new Map();let runs=0;const inputs=[];
 const fake=createServer((req,res)=>{
  const auth=req.headers.authorization;if(auth!=='Bearer chave-falsa-local'){res.writeHead(401);res.end('{"error":"sem chave"}');return}
  const send=(code,body)=>{res.writeHead(code,{'content-type':'application/json'});res.end(JSON.stringify(body))};
- if(req.method==='POST'&&req.url==='/endpoint-falso/run'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{const {input}=JSON.parse(body);const wf=input.workflow;if(!wf||wf['4'].class_type!=='CLIPTextEncode'||typeof wf['4'].inputs.text!=='string'||wf['6'].inputs.width!==1024){send(400,{error:'workflow inesperado'});return}const id=`fake-${++runs}`;jobs.set(id,{polls:0,prompt:wf['4'].inputs.text});send(200,{id,status:'IN_QUEUE'})});return}
+ if(req.method==='POST'&&req.url==='/endpoint-falso/run'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{const {input}=JSON.parse(body);const wf=input.workflow;if(!wf||wf['4'].class_type!=='CLIPTextEncode'||typeof wf['4'].inputs.text!=='string'||(wf['6']??wf['14']).inputs.width!==1024){send(400,{error:'workflow inesperado'});return}inputs.push(input);const id=`fake-${++runs}`;jobs.set(id,{polls:0,prompt:wf['4'].inputs.text});send(200,{id,status:'IN_QUEUE'})});return}
  const m=req.url.match(/^\/endpoint-falso\/status\/(.+)$/);
  if(m){const j=jobs.get(m[1]);if(!j){send(404,{error:'nao existe'});return}j.polls++;if(j.prompt.includes('FALHAR')){send(200,{id:m[1],status:'FAILED',error:'boom'});return}if(j.polls===1){send(200,{id:m[1],status:'IN_PROGRESS'});return}send(200,{id:m[1],status:'COMPLETED',output:{images:[{filename:'krea2_00001_.png',type:'base64',data:PNG.toString('base64')}]},delayTime:1200,executionTime:7000});return}
  send(404,{error:'rota'});
@@ -37,6 +37,13 @@ try{
  const failing=await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'isto vai FALHAR'}});assert.equal(failing.status,201);
  const failed=await call(`/api/painel/arte/${failing.data.job.id}`);assert.equal(failed.data.job.status,'erro');assert.ok(failed.data.job.error);marks.push('failure_reported_in_portuguese');
  assert.equal((await call('/api/painel/arte/00000000-0000-4000-8000-000000000000')).status,404);marks.push('unknown_job_404');
+ assert.equal((await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'foto externa',imagemUrl:'https://evil.example/x.png'}})).status,400);marks.push('external_source_rejected');
+ assert.equal((await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'forca alta',imagemUrl:'/workspace/01-celular-cafe-cama.jpg',forca:5}})).status,400);marks.push('force_out_of_range_rejected');
+ const fromPhoto=await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'a mesma cena ao entardecer',imagemUrl:'/workspace/01-celular-cafe-cama.jpg',forca:0.4}});assert.equal(fromPhoto.status,201);
+ const sent=inputs.at(-1);assert.equal(sent.images.length,1);assert.equal(sent.workflow['15'].class_type,'VAEEncode');assert.equal(sent.workflow['7'].inputs.denoise,0.4);assert.equal(sent.workflow['6'],undefined);
+ const {readFileSync}=await import('node:fs');assert.ok(Buffer.from(sent.images[0].image,'base64').equals(readFileSync('public/workspace/01-celular-cafe-cama.jpg')),'foto enviada byte a byte');marks.push('image_to_image_sends_photo');
+ const ownFile=await fetch(`${base}/api/painel/arquivo?chave=${chave}`,{method:'POST',headers:{Cookie:cookie,Origin:base,'Content-Type':'image/png','X-Nome':'minha.png'},body:PNG});assert.equal(ownFile.status,201);const ownUrl=(await ownFile.json()).url;
+ const fromOwn=await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'a partir do meu arquivo',imagemUrl:ownUrl}});assert.equal(fromOwn.status,201);assert.ok(Buffer.from(inputs.at(-1).images[0].image,'base64').equals(PNG));assert.equal(inputs.at(-1).workflow['7'].inputs.denoise,0.65);marks.push('image_to_image_from_own_file');
  assert.equal((await call(`/api/painel?chave=${chave}`,{method:'DELETE'})).status,200);assert.equal((await call(second.data.job.url,{raw:true})).status,404);marks.push('delete_removes_generated_files');
  console.log(JSON.stringify({passed:marks,runpodRuns:runs}));
 }catch(error){console.error(JSON.stringify({passed:marks}));await call(`/api/painel?chave=${chave}`,{method:'DELETE'}).catch(()=>{});throw error}

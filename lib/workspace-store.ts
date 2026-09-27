@@ -56,3 +56,9 @@ export async function findArtJob(owner:string,id:string):Promise<ArtJob|null>{
 export async function updateArtJob(owner:string,id:string,patch:{status:ArtJob['status'];fileId?:string|null;error?:string|null}){
  await db().prepare('UPDATE art_jobs SET status=?,file_id=COALESCE(?,file_id),error=?,updated_at=? WHERE owner_id=? AND id=?').bind(patch.status,patch.fileId??null,patch.error??null,new Date().toISOString(),owner,id).run();
 }
+export async function readFileBytes(owner:string,id:string):Promise<{mime:string;bytes:Uint8Array}|null>{
+ const file=await findFile(owner,id);if(!file)return null;
+ const out=new Uint8Array(file.size);let offset=0;
+ for(let seq=0;seq<file.chunks;seq++){const chunk=await readChunk(id,seq);if(!chunk)return null;out.set(new Uint8Array(chunk),offset);offset+=chunk.byteLength}
+ return {mime:file.mime,bytes:out};
+}
