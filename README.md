@@ -1,5 +1,7 @@
 # Launchwing — landing page Lift
 
+**Painel salvo na conta — 27/09/2026:** `/painel` deixa de guardar dados só no navegador. Cada usuário tem uma linha em `workspaces` (D1) com número de revisão, e os arquivos enviados (logo, mídias, até 20 MB) ficam em `workspace_files` em pedaços de 900 KB, servidos por `/api/painel/arquivo/{id}` só ao dono. Na primeira abertura, o rascunho antigo do IndexedDB sobe uma vez para a conta. Migração `0002_nostalgic_chameleon.sql` (aplicar no D1 de produção pelo fluxo do Sites antes de publicar). Prova: `scripts/painel/smoke.mjs`, 19 verificações, e tela real conferida no navegador. Contexto curto para agentes em `CLAUDE.md` e comandos `/issue-*` em `.claude/commands`.
+
 **Produto local — 12/09/2026:** espaço completo de frontend em `/painel`, autenticado; navegação também integrada ao piloto após onboarding. 14 telas, editor de slides, galeria/Marca e planejamento local via IndexedDB. Conteúdos reais continuam usando API/revisão/exportador do piloto. Novas integrações sociais, tendências, renderização de arte e jobs de campanha ainda pendentes. [Registro completo](../context/frontend-mvp-2026-09-12.md). TypeScript e build Sites aprovados, sem novo deploy.
 
 Página de acesso antecipado, criada em 2026-09-10. Identidade Lift; Manrope local; mercado Brasil. Copy representa o MVP planejado, ainda não disponível.
