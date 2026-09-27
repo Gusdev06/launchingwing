@@ -77,6 +77,18 @@ async function call(config:Config,kind:Kind,path:string,init?:RequestInit){
  if(!response.ok)throw new Error(`RunPod respondeu ${response.status}: ${(await response.text()).slice(0,300)}`);
  return response.json();
 }
+// Saldo da conta RunPod (GraphQL). Sem RUNPOD_BASE_URL usa a API oficial; com ela (teste), o mesmo host.
+export async function saldo(config:Config):Promise<{saldoUsd:number;gastoPorHoraUsd:number}|null>{
+ const url=config.base.includes('api.runpod.ai')?`https://api.runpod.io/graphql?api_key=${encodeURIComponent(config.apiKey)}`:`${config.base}/graphql`;
+ try{
+  const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${config.apiKey}`},body:JSON.stringify({query:'{ myself { clientBalance currentSpendPerHr } }'}),signal:AbortSignal.timeout(8000)});
+  if(!response.ok)return null;
+  const body=await response.json() as {data?:{myself?:{clientBalance?:number;currentSpendPerHr?:number}}};
+  const me=body.data?.myself;if(!me||typeof me.clientBalance!=='number')return null;
+  return {saldoUsd:me.clientBalance,gastoPorHoraUsd:me.currentSpendPerHr??0};
+ }catch{return null}
+}
+export const SALDO_BAIXO_USD=3;
 export async function iniciar(config:Config,kind:Kind,workflow:unknown,images:{name:string;image:string}[]=[]):Promise<string>{
  const {id}=await call(config,kind,'/run',{method:'POST',body:JSON.stringify({input:{workflow,...(images.length?{images}:{})}})}) as {id:string};
  if(!id)throw new Error('RunPod não devolveu o id do pedido.');return id;

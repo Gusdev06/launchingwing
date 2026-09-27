@@ -1,6 +1,7 @@
 import {keySchema,saveSchema,MAX_DOC_BYTES} from '@/lib/workspace-model';
 import {deleteWorkspace,findWorkspace,saveWorkspace} from '@/lib/workspace-store';
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
+import {rateLimited} from '@/lib/rate-limit';
 function key(request:Request){const parsed=keySchema.safeParse(new URL(request.url).searchParams.get('chave')||'preview');return parsed.success?parsed.data:null}
 export async function GET(request:Request){
  const owner=await pilotIdentity(request);if(!owner)return Response.json({error:'Entre para abrir seu espaço.'},{status:401,headers:pilotHeaders});
@@ -9,6 +10,7 @@ export async function GET(request:Request){
 }
 export async function PUT(request:Request){
  const owner=await pilotIdentity(request,true);if(!owner)return Response.json({error:'Entre novamente para salvar.'},{status:403,headers:pilotHeaders});
+ if(await rateLimited(`painel:${owner}`,120,60000)){await request.body?.cancel();return Response.json({error:'Muitas gravações seguidas. Aguarde um minuto e tente de novo.'},{status:429,headers:pilotHeaders})}
  let body;try{body=await readPilotBody(request,MAX_DOC_BYTES)}catch(error){return Response.json({error:error instanceof Error?error.message:'Envio inválido.'},{status:413,headers:pilotHeaders})}
  const parsed=saveSchema.safeParse(body);if(!parsed.success)return Response.json({error:'Os dados do espaço estão fora do formato esperado. Recarregue a página e tente de novo.'},{status:400,headers:pilotHeaders});
  try{

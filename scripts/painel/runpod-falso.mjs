@@ -6,6 +6,7 @@ const PNG='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwACh
 const jobs=new Map();let runs=0;
 createServer((req,res)=>{
  const send=(code,body)=>{res.writeHead(code,{'content-type':'application/json'});res.end(JSON.stringify(body))};
+ if(req.method==='POST'&&req.url==='/graphql'){send(200,{data:{myself:{clientBalance:2.4,currentSpendPerHr:0}}});return}
  if(req.method==='POST'&&/\/run$/.test(req.url)){let body='';req.on('data',c=>body+=c);req.on('end',()=>{const id=`fake-${++runs}`;const wf=JSON.parse(body).input.workflow;const video=/video/.test(req.url);jobs.set(id,{polls:0,video});console.log('run',id,video?wf['5'].inputs.prompt:wf['4'].inputs.text);send(200,{id,status:'IN_QUEUE'})});return}
  const m=req.url.match(/\/status\/(.+)$/);if(m&&jobs.has(m[1])){const j=jobs.get(m[1]);j.polls++;send(200,j.polls===1?{status:'IN_PROGRESS'}:{status:'COMPLETED',output:{images:j.video?[{filename:'video/minimax_h3_00001_.mp4',type:'base64',data:MP4}]:[{filename:'krea2_00001_.png',type:'base64',data:PNG}]}});return}
  send(404,{error:'rota'});

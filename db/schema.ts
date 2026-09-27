@@ -53,3 +53,8 @@ export const artJobs=sqliteTable('art_jobs',{
  createdAt:text('created_at').notNull(),
  updatedAt:text('updated_at').notNull(),
 },table=>[index('idx_art_jobs_owner_created').on(table.ownerId,table.createdAt)]);
+export const rateLimits=sqliteTable('rate_limits',{
+ key:text('key').primaryKey(),
+ windowStart:integer('window_start').notNull(),
+ count:integer('count').notNull().default(0),
+});

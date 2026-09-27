@@ -9,6 +9,7 @@ const jobs=new Map();let runs=0;const inputs=[];
 const fake=createServer((req,res)=>{
  const auth=req.headers.authorization;if(auth!=='Bearer chave-falsa-local'){res.writeHead(401);res.end('{"error":"sem chave"}');return}
  const send=(code,body)=>{res.writeHead(code,{'content-type':'application/json'});res.end(JSON.stringify(body))};
+ if(req.method==='POST'&&req.url==='/graphql'){send(200,{data:{myself:{clientBalance:1.5,currentSpendPerHr:0}}});return}
  if(req.method==='POST'&&req.url==='/endpoint-video-falso/run'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{const {input}=JSON.parse(body);const wf=input.workflow;if(!wf||wf['5'].class_type!=='MiniMaxH3ImageToVideo'||wf['14'].class_type!=='SaveVideo'||typeof wf['5'].inputs.length!=='number'){send(400,{error:'workflow de video inesperado'});return}inputs.push(input);const id=`fakev-${++runs}`;jobs.set(id,{polls:0,prompt:wf['5'].inputs.prompt,video:true});send(200,{id,status:'IN_QUEUE'})});return}
  if(req.method==='POST'&&req.url==='/endpoint-falso/run'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{const {input}=JSON.parse(body);const wf=input.workflow;if(!wf||wf['4'].class_type!=='CLIPTextEncode'||typeof wf['4'].inputs.text!=='string'||(wf['6']??wf['14']).inputs.width!==1024){send(400,{error:'workflow inesperado'});return}inputs.push(input);const id=`fake-${++runs}`;jobs.set(id,{polls:0,prompt:wf['4'].inputs.text});send(200,{id,status:'IN_QUEUE'})});return}
  const m=req.url.match(/^\/endpoint(?:-video)?-falso\/status\/(.+)$/);
@@ -26,7 +27,7 @@ async function call(path,{method='GET',body,auth=true,origin=base,raw}={}){
 const chave=`arte-${crypto.randomUUID()}`;const marks=[];
 try{
  assert.equal((await call('/api/painel/arte',{auth:false})).status,401);marks.push('anonymous_blocked');
- const info=await call('/api/painel/arte');assert.equal(info.status,200);assert.equal(info.data.conectado,true);assert.equal(info.data.video,true);marks.push('connected_reported');
+ const info=await call('/api/painel/arte');assert.equal(info.status,200);assert.equal(info.data.conectado,true);assert.equal(info.data.video,true);assert.equal(info.data.saldoUsd,1.5);assert.equal(info.data.saldoBaixo,true);marks.push('connected_and_low_balance_reported');
  assert.equal((await call('/api/painel/arte',{method:'POST',origin:'https://example.com',body:{chave,prompt:'gato'}})).status,403);marks.push('cross_origin_blocked');
  assert.equal((await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'ab'}})).status,400);marks.push('short_prompt_rejected');
  const started=await call('/api/painel/arte',{method:'POST',body:{chave,prompt:'um gato astronauta na lua',tamanho:'1:1'}});assert.equal(started.status,201);assert.equal(started.data.job.status,'na_fila');marks.push('job_started_at_runpod');

@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {keySchema} from '@/lib/workspace-model';
-import {runpodConfig,workflowImagem,workflowVideo,iniciar,TAMANHOS_IMAGEM,TAMANHOS_VIDEO} from '@/lib/runpod';
+import {runpodConfig,workflowImagem,workflowVideo,iniciar,saldo,SALDO_BAIXO_USD,TAMANHOS_IMAGEM,TAMANHOS_VIDEO} from '@/lib/runpod';
 import {countArtJobsToday,createArtJob,readFileBytes} from '@/lib/workspace-store';
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
 // Teto por conta em 24 h. Cada imagem custa dinheiro de verdade no RunPod (US$ 0,005 a 0,02).
@@ -21,7 +21,8 @@ async function fotoInicial(owner:string,url:string){
 }
 export async function GET(request:Request){
  if(!await pilotIdentity(request))return Response.json({error:'Entre para continuar.'},{status:401,headers:pilotHeaders});
- const config=runpodConfig();return Response.json({conectado:!!config?.endpoints.imagem,video:!!config?.endpoints.video,tamanhos:TAMANHOS_IMAGEM,tamanhosVideo:TAMANHOS_VIDEO,tetoDiario:TETO_DIARIO,tetoDiarioVideo:TETO_DIARIO_VIDEO},{headers:pilotHeaders});
+ const config=runpodConfig();const conta=config?await saldo(config):null;
+ return Response.json({conectado:!!config?.endpoints.imagem,video:!!config?.endpoints.video,saldoUsd:conta?.saldoUsd??null,saldoBaixo:conta?conta.saldoUsd<SALDO_BAIXO_USD:null,tamanhos:TAMANHOS_IMAGEM,tamanhosVideo:TAMANHOS_VIDEO,tetoDiario:TETO_DIARIO,tetoDiarioVideo:TETO_DIARIO_VIDEO},{headers:pilotHeaders});
 }
 export async function POST(request:Request){
  const owner=await pilotIdentity(request,true);if(!owner)return Response.json({error:'Entre novamente para gerar.'},{status:403,headers:pilotHeaders});

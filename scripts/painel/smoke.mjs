@@ -36,5 +36,9 @@ try{
  const withFile=await call('/api/painel',{method:'PUT',body:{chave,revision:1,data:{...data,media:[{id:'m1',name:'prova.png',src:uploaded.data.url,kind:'image',collection:'Meus arquivos',origin:'Arquivo local'}]}}});assert.equal(withFile.status,200);marks.push('file_url_accepted_in_document');
  assert.equal((await call(`/api/painel?chave=${chave}`,{method:'DELETE'})).status,200);
  assert.deepEqual((await call(`/api/painel?chave=${chave}`)).data,{workspace:null});assert.equal((await call(uploaded.data.url,{raw:''})).status,404);marks.push('delete_removes_document_and_files');
+ // No dev todo pedido chega com o mesmo IP (127.0.0.1), então a prova é: depois de 11 envios seguidos o
+ // último é 429, e nenhum deles gravou e-mail (campo website é a armadilha para robôs).
+ const codes=[];for(let i=0;i<11;i++)codes.push((await fetch(`${base}/api/waitlist`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'x@y.z',website:'bot'})})).status);
+ assert.equal(codes.at(-1),429,`códigos: ${codes.join(',')}`);assert.ok(codes.every(c=>c===200||c===429));marks.push('waitlist_rate_limited_after_10_per_hour');
  console.log(JSON.stringify({passed:marks}));
 }catch(error){console.error(JSON.stringify({passed:marks}));await call(`/api/painel?chave=${chave}`,{method:'DELETE'}).catch(()=>{});throw error}

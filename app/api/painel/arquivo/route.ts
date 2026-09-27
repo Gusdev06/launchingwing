@@ -1,6 +1,7 @@
 import {fileMimes,keySchema,MAX_FILE_BYTES} from '@/lib/workspace-model';
 import {createFile} from '@/lib/workspace-store';
 import {pilotIdentity,pilotHeaders} from '@/lib/pilot-http';
+import {rateLimited} from '@/lib/rate-limit';
 async function readBytes(request:Request){
  const reader=request.body?.getReader();if(!reader)throw new Error('Arquivo ausente.');
  const chunks:Uint8Array[]=[];let bytes=0;
@@ -10,6 +11,7 @@ async function readBytes(request:Request){
 }
 export async function POST(request:Request){
  const owner=await pilotIdentity(request,true);if(!owner){await request.body?.cancel();return Response.json({error:'Entre novamente para enviar arquivos.'},{status:403,headers:pilotHeaders})}
+ if(await rateLimited(`arquivo:${owner}`,60,3600000)){await request.body?.cancel();return Response.json({error:'Muitos envios em uma hora. Aguarde um pouco e tente de novo.'},{status:429,headers:pilotHeaders})}
  const mime=(request.headers.get('Content-Type')||'').split(';')[0].trim().toLowerCase();
  if(!fileMimes.has(mime)){await request.body?.cancel();return Response.json({error:'Use JPG, PNG, WebP, GIF, MP4 ou WebM.'},{status:415,headers:pilotHeaders})}
  const chave=keySchema.safeParse(new URL(request.url).searchParams.get('chave')||'preview');if(!chave.success)return Response.json({error:'Chave do espaço inválida.'},{status:400,headers:pilotHeaders});
