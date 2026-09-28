@@ -40,6 +40,9 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
       return null;
     }
   }
+  // Os cabeçalhos do ChatGPT só valem quando uma camada confiável os injeta (dev local ou o Sites).
+  // Num Worker aberto na internet, qualquer um poderia mandá-los: por isso exigem ALLOW_CHATGPT_HEADERS=1.
+  if ((env as unknown as { ALLOW_CHATGPT_HEADERS?: string }).ALLOW_CHATGPT_HEADERS !== "1") return null;
   const userId = requestHeaders.get(USER_ID_HEADER);
   const email = requestHeaders.get(USER_EMAIL_HEADER);
   if (!userId || !email) return null;
@@ -64,7 +67,8 @@ export async function requireChatGPTUser(
 ): Promise<ChatGPTUser> {
   const user = await getChatGPTUser();
   if (user) return user;
-
+  // Sem Access configurado e sem os cabeçalhos do ChatGPT, não há como entrar: volta para a landing.
+  if (!accessConfig() && (env as unknown as { ALLOW_CHATGPT_HEADERS?: string }).ALLOW_CHATGPT_HEADERS !== "1") redirect("/");
   redirect(chatGPTSignInPath(returnTo));
 }
 

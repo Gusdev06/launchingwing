@@ -25,7 +25,7 @@ jobs:
         run: node scripts/migracoes.mjs local
       - name: provas contra o servidor local
         run: |
-          printf 'RUNPOD_API_KEY=chave-falsa-local\nRUNPOD_KREA2_ENDPOINT_ID=endpoint-falso\nRUNPOD_H3_ENDPOINT_ID=endpoint-video-falso\nRUNPOD_BASE_URL=http://127.0.0.1:8790\n' > .dev.vars
+          printf 'ALLOW_CHATGPT_HEADERS=1\nRUNPOD_API_KEY=chave-falsa-local\nRUNPOD_KREA2_ENDPOINT_ID=endpoint-falso\nRUNPOD_H3_ENDPOINT_ID=endpoint-video-falso\nRUNPOD_BASE_URL=http://127.0.0.1:8790\n' > .dev.vars
           mkdir -p outputs
           npm run dev > dev.log 2>&1 &
           for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:5173/ && break; sleep 2; done
