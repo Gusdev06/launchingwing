@@ -74,6 +74,8 @@ export async function requireChatGPTUser(
 
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  // Com Access, a própria página protegida pede o e-mail e manda o código.
+  if (accessConfig()) return safeReturnTo;
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
