@@ -15,19 +15,21 @@ node scripts/pilot/smoke.mjs         # prova das rotas do piloto, precisa do dev
 node scripts/painel/smoke.mjs        # prova das rotas do painel, idem
 node scripts/painel/arte-smoke.mjs   # geração de imagem contra RunPod falso (RUNPOD_BASE_URL em .dev.vars)
 node scripts/painel/export-smoke.mjs # pacote ZIP do painel, sem servidor
+node scripts/painel/access-smoke.mjs # JWT do Cloudflare Access, sem servidor
+npm run db:migrate:local             # tabelas no banco do dev (depois de npm run build)
 ```
 
-Deploy: ChatGPT Sites, conta do Gustavo. Ninguém publica daqui. Entregar commit.
+Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver README). O ChatGPT Sites saiu em 28/09/2026. Login por Cloudflare Access (`lib/access-jwt.ts`).
 
 ## Arquivos que importam
 
-- `app/chatgpt-auth.ts` identidade (cabeçalhos do ChatGPT). `requireChatGPTUser` em toda página privada.
+- `app/chatgpt-auth.ts` identidade: JWT do Cloudflare Access quando configurado, senão cabeçalhos do ChatGPT. `requireChatGPTUser` em toda página privada.
 - `lib/pilot-http.ts` guarda das rotas: 401 sem login, 403 escrita de outra origem, corpo limitado a 12 KB.
 - `lib/pilot-store.ts` padrão de gravação no D1: linha por dono, `revision` confere antes de gravar, 409 se mudou.
 - `lib/pilot-engine.ts` gerador privado (Claude e Apify) fora deste repo, via `LAUNCHWING_ENGINE_URL` e token. Não dá para testar aqui.
 - `app/piloto/frontend/` painel de 14 telas. `model.ts` tipos e dados iniciais. `workspace.tsx` estado e gravação.
 - `lib/runpod.ts` cliente do RunPod (imagem por IA). Chaves em `.dev.vars` (modelo em `.dev.vars.example`), nunca no git.
-- `db/schema.ts` e `drizzle/` esquema e migrações. Aplicar no D1 local: `sed 's/--> statement-breakpoint//' drizzle/000N_*.sql | sqlite3 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/*.sqlite`.
+- `db/schema.ts` e `drizzle/` esquema e migrações. Aplicar: `npm run db:migrate:local` ou `:remote`.
 - `scripts/pilot/*.mjs` provas por execução contra o dev local.
 
 ## Decisões

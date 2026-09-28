@@ -1,0 +1,37 @@
+name: verificar
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  provas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - name: lint (8 avisos antigos do React Compiler nao bloqueiam)
+        run: npm run lint || true
+      - name: provas sem servidor
+        run: |
+          node scripts/painel/access-smoke.mjs
+          node scripts/painel/export-smoke.mjs
+          node scripts/pilot/export-smoke.mjs
+      - name: banco local com as migracoes
+        run: node scripts/migracoes.mjs local
+      - name: provas contra o servidor local
+        run: |
+          printf 'RUNPOD_API_KEY=chave-falsa-local\nRUNPOD_KREA2_ENDPOINT_ID=endpoint-falso\nRUNPOD_H3_ENDPOINT_ID=endpoint-video-falso\nRUNPOD_BASE_URL=http://127.0.0.1:8790\n' > .dev.vars
+          mkdir -p outputs
+          npm run dev > dev.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:5173/ && break; sleep 2; done
+          node scripts/pilot/smoke.mjs
+          node scripts/painel/smoke.mjs
+          node scripts/painel/arte-smoke.mjs
+      - name: log do servidor se algo falhou
+        if: failure()
+        run: tail -80 dev.log || true

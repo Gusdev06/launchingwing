@@ -5,6 +5,9 @@ RUNPOD_KREA2_ENDPOINT_ID=t8n6hkcx0pz66w
 RUNPOD_H3_ENDPOINT_ID=d9z15cym982ynz
 # So para teste: aponta para o RunPod falso de scripts/painel/arte-smoke.mjs
 # RUNPOD_BASE_URL=http://127.0.0.1:8790
+# Login fora do ChatGPT Sites (Cloudflare Access). Vazio no dev: o login local de teste continua valendo.
+CF_ACCESS_TEAM_DOMAIN=
+CF_ACCESS_AUD=
 # Gerador privado do piloto (fora deste repositorio)
 LAUNCHWING_ENGINE_URL=
 LAUNCHWING_ENGINE_TOKEN=

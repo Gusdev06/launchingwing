@@ -1,4 +1,18 @@
-# Launchwing — landing page Lift
+# Launchwing
+
+## Publicar sem o ChatGPT Sites (decisão de 28/09/2026)
+
+O app roda direto na Cloudflare (Workers e D1), sem o Sites no meio. O login passa a ser o Cloudflare Access (código por e-mail, grátis até 50 usuários): o Worker só aceita o JWT que o Access injeta, verificado em `lib/access-jwt.ts` (prova em `scripts/painel/access-smoke.mjs`, 8 casos). Sem `CF_ACCESS_TEAM_DOMAIN` e `CF_ACCESS_AUD`, o app volta a aceitar os cabeçalhos do ChatGPT e o login local de teste.
+
+Uma vez, no painel da Cloudflare: criar o banco D1 (anotar id e nome), um token de API com permissão de Workers e D1, e em Zero Trust > Access uma aplicação para o domínio do Worker (anotar o `aud`). Depois, na máquina de quem publica:
+
+```bash
+export CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_D1_ID=... CLOUDFLARE_D1_NAME=launchwing
+npm run deploy                      # build, migrações remotas (drizzle/ vira migrations/) e wrangler deploy
+npx wrangler secret put RUNPOD_API_KEY -c dist/server/wrangler.json      # idem RUNPOD_KREA2_ENDPOINT_ID, RUNPOD_H3_ENDPOINT_ID, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
+```
+
+Dev local: `npm run build && npm run db:migrate:local` cria as tabelas no banco do `npm run dev`. CI em `.github/workflows/verificar.yml`: tipos, build, lint (avisos antigos não bloqueiam), provas sem servidor e os três smokes contra o servidor local com RunPod simulado.
 
 **Limite de taxa e aviso de crédito — 27/09/2026 (noite):** tabela `rate_limits` no D1 (migração `0005_dear_slapstick.sql`, sem KV): cadastro de e-mail 10 por hora por IP (`CF-Connecting-IP`), gravações do painel 120 por minuto por usuário, envios de arquivo 60 por hora por usuário; excesso responde 429 com mensagem. Se o banco falhar, deixa passar. `GET /api/painel/arte` passa a trazer o crédito da conta RunPod (GraphQL `myself.clientBalance`) e `saldoBaixo` abaixo de US$ 3; a tela "Uso e plano" mostra conexão, tetos diários e crédito, e o diálogo de geração avisa quando o crédito está baixo. Provas: `scripts/painel/smoke.mjs` 20 casos, `arte-smoke.mjs` 22 casos, tela real.
 

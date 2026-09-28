@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { env } from "cloudflare:workers";
+import { verifyAccessJwt } from "@/lib/access-jwt";
 
 export type ChatGPTUser = {
   userId: string;
@@ -18,8 +20,26 @@ const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
 
+// Fora do ChatGPT Sites, quem identifica o usuário é o Cloudflare Access: ele exige login por código
+// no e-mail antes de a requisição chegar aqui e manda um JWT assinado. Com CF_ACCESS_TEAM_DOMAIN e
+// CF_ACCESS_AUD definidos, só o JWT vale; os cabeçalhos do ChatGPT são ignorados.
+type AccessConfig = { team: string; aud: string };
+function accessConfig(): AccessConfig | null {
+  const e = env as unknown as { CF_ACCESS_TEAM_DOMAIN?: string; CF_ACCESS_AUD?: string };
+  return e.CF_ACCESS_TEAM_DOMAIN && e.CF_ACCESS_AUD ? { team: e.CF_ACCESS_TEAM_DOMAIN, aud: e.CF_ACCESS_AUD } : null;
+}
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
+  const access = accessConfig();
+  if (access) {
+    const token = requestHeaders.get("cf-access-jwt-assertion");
+    if (!token) return null;
+    try {
+      return await verifyAccessJwt(token, access);
+    } catch {
+      return null;
+    }
+  }
   const userId = requestHeaders.get(USER_ID_HEADER);
   const email = requestHeaders.get(USER_EMAIL_HEADER);
   if (!userId || !email) return null;
@@ -54,6 +74,7 @@ export function chatGPTSignInPath(returnTo: string): string {
 }
 
 export function chatGPTSignOutPath(returnTo = "/"): string {
+  if (accessConfig()) return "/cdn-cgi/access/logout";
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
