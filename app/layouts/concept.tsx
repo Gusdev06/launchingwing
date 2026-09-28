@@ -34,6 +34,7 @@ export function VideoStage(){
  const [active,setActive]=useState(0),[playing,setPlaying]=useState(false);
  const video=useRef<HTMLVideoElement>(null);
  const current=heroVideos[active];
+ // eslint-disable-next-line react-hooks/set-state-in-effect -- lê a preferência do sistema só no navegador, depois da montagem
  useEffect(()=>{const preference=window.matchMedia('(prefers-reduced-motion: reduce)');setPlaying(!preference.matches);const change=()=>setPlaying(!preference.matches);preference.addEventListener('change',change);return()=>preference.removeEventListener('change',change)},[]);
  useEffect(()=>{
   const el=video.current;if(!el)return;
