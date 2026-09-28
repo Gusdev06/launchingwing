@@ -2,6 +2,8 @@
 
 ## Publicar sem o ChatGPT Sites (decisão de 28/09/2026)
 
+**No ar desde 28/09/2026** em https://launchwing.launchwing.workers.dev, na conta Cloudflare do Nicolas (Worker `launchwing`, D1 `launchwing`, migrações 0000 a 0005 aplicadas). Login ainda não configurado: páginas privadas voltam para a landing e cabeçalho de identidade falso responde 401 (conferido por execução). Falta criar o Zero Trust (Access) e as variáveis do RunPod.
+
 O app roda direto na Cloudflare (Workers e D1), sem o Sites no meio. O login passa a ser o Cloudflare Access (código por e-mail, grátis até 50 usuários): o Worker só aceita o JWT que o Access injeta, verificado em `lib/access-jwt.ts` (prova em `scripts/painel/access-smoke.mjs`, 8 casos). Sem `CF_ACCESS_TEAM_DOMAIN` e `CF_ACCESS_AUD`, o app volta a aceitar os cabeçalhos do ChatGPT e o login local de teste.
 
 Uma vez, no painel da Cloudflare: criar o banco D1 (anotar id e nome), um token de API com permissão de Workers e D1, e em Zero Trust > Access uma aplicação para o domínio do Worker (anotar o `aud`). Depois, na máquina de quem publica:
