@@ -11,7 +11,7 @@ Uma vez, no painel da Cloudflare: criar o banco D1 (anotar id e nome), um token 
 ```bash
 export CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_D1_ID=... CLOUDFLARE_D1_NAME=launchwing
 npm run deploy                      # build, migrações remotas (drizzle/ vira migrations/) e wrangler deploy
-npx wrangler secret put RUNPOD_API_KEY -c dist/server/wrangler.json      # idem RUNPOD_KREA2_ENDPOINT_ID, RUNPOD_H3_ENDPOINT_ID, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
+npx wrangler secret put OPENAI_API_KEY -c dist/server/wrangler.json      # idem CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
 ```
 
 Dev local: `npm run build && npm run db:migrate:local` cria as tabelas no banco do `npm run dev`. CI em `.github/workflows/verificar.yml`: tipos, build, lint (avisos antigos não bloqueiam), provas sem servidor e os três smokes contra o servidor local com RunPod simulado.
@@ -19,6 +19,8 @@ Dev local: `npm run build && npm run db:migrate:local` cria as tabelas no banco 
 **Limite de taxa e aviso de crédito — 27/09/2026 (noite):** tabela `rate_limits` no D1 (migração `0005_dear_slapstick.sql`, sem KV): cadastro de e-mail 10 por hora por IP (`CF-Connecting-IP`), gravações do painel 120 por minuto por usuário, envios de arquivo 60 por hora por usuário; excesso responde 429 com mensagem. Se o banco falhar, deixa passar. `GET /api/painel/arte` passa a trazer o crédito da conta RunPod (GraphQL `myself.clientBalance`) e `saldoBaixo` abaixo de US$ 3; a tela "Uso e plano" mostra conexão, tetos diários e crédito, e o diálogo de geração avisa quando o crédito está baixo. Provas: `scripts/painel/smoke.mjs` 20 casos, `arte-smoke.mjs` 22 casos, tela real.
 
 **Auditoria e correções — 27/09/2026 (noite):** `next` 16.2.6 para 16.3.6 (duas falhas, uma crítica), `react`/`react-dom`/`react-server-dom-webpack` 19.3.0, `vinext` beta.13, `vite` 8.3.1, `@cloudflare/vite-plugin` 1.61, `wrangler` 4.142 e `@cloudflare/workers-types` 5. `npm audit`: de 24 avisos (1 crítico, 16 altos) para 8 moderados, todos em ferramentas de build. Build, tipos, lint e os 5 smokes iguais a antes. Também: foto de partida da biblioteca pública sobe como arquivo da conta antes da geração (um Worker não busca a própria URL com segurança) e cabeçalho `X-Nome` malformado devolve 400 em vez de 500. Pendentes da auditoria: teste de cabeçalho de identidade contra o site no ar (só depois do deploy), limite de taxa no cadastro e aviso de saldo do RunPod.
+
+**Troca para o ChatGPT Image (28/09/2026):** a imagem por IA passou a sair da OpenAI (`gpt-image-2.5-flare`, `lib/openai-imagem.ts`), a pedido do Gustavo. A resposta vem direto, sem fila; com foto de partida usa `/images/edits`. Variável `OPENAI_API_KEY` (opcional `OPENAI_IMAGE_MODEL`). O vídeo por IA está desligado até o Gustavo decidir o caminho; o código do RunPod segue em `lib/runpod.ts`. Os registros abaixo sobre RunPod são históricos.
 
 **Vídeo por IA no editor — 27/09/2026:** "Criar vídeo com IA" no editor gera pelo endpoint MiniMax H3 (`RUNPOD_H3_ENDPOINT_ID`), com formato (16:9, 9:16, 1:1), duração de 2 a 15 s e primeiro quadro opcional (foto do slide ou da galeria). O MP4 com áudio vira arquivo da conta, entra na galeria em "Vídeos por IA" e passa a ser o vídeo do conteúdo. Teto de 20 vídeos por conta em 24 h. Coluna `kind` em `art_jobs` (migração `0004_pretty_vermin.sql`). Prova: `scripts/painel/arte-smoke.mjs` com 20 verificações (RunPod falso) e tela real. Vídeo real leva 1 a 4 minutos e custa por volta de R$ 0,40 na conta do Gustavo; não foi exercitado em GPU.
 
