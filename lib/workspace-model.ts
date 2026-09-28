@@ -15,3 +15,17 @@ const brand=z.object({name:short,site:z.string().max(2000),description:long,audi
 export const workspaceSchema:z.ZodType<WorkspaceData>=z.object({version:z.literal(1),brand,brandEdited:z.boolean().optional(),contents:z.array(content).max(500),media:z.array(media).max(1000),plans:z.array(plan).max(1000),campaigns:z.array(campaign).max(100),favorites:z.array(short).max(1000),collections:z.array(short).max(100),preferences:z.object({language:short,timezone:short,readyAlerts:z.boolean(),failureAlerts:z.boolean(),weeklyAlerts:z.boolean()})});
 export const saveSchema=z.object({chave:keySchema,revision:z.number().int().min(-1),data:workspaceSchema});
 export const fileMimes=new Set(['image/png','image/jpeg','image/webp','image/gif','video/mp4','video/webm']);
+// Confere os primeiros bytes do arquivo contra o tipo declarado pelo navegador, que o usuário pode forjar.
+function startsWith(bytes:Uint8Array,sig:number[],at=0){return sig.every((b,i)=>bytes[at+i]===b)}
+const ascii=(text:string)=>[...text].map(c=>c.charCodeAt(0));
+export function contentMatchesMime(bytes:Uint8Array,mime:string){
+ switch(mime){
+  case 'image/png':return startsWith(bytes,[0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+  case 'image/jpeg':return startsWith(bytes,[0xff,0xd8,0xff]);
+  case 'image/gif':return startsWith(bytes,ascii('GIF87a'))||startsWith(bytes,ascii('GIF89a'));
+  case 'image/webp':return startsWith(bytes,ascii('RIFF'))&&startsWith(bytes,ascii('WEBP'),8);
+  case 'video/mp4':return startsWith(bytes,ascii('ftyp'),4);
+  case 'video/webm':return startsWith(bytes,[0x1a,0x45,0xdf,0xa3]);
+  default:return false;
+ }
+}

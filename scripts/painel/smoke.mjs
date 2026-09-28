@@ -27,7 +27,8 @@ try{
  const updated=await call('/api/painel',{method:'PUT',body:{chave,revision:0,data:{...data,favorites:['c1']}}});assert.equal(updated.status,200);assert.equal(updated.data.revision,1);marks.push('update_increments_revision');
  assert.equal((await call('/api/painel',{method:'PUT',body:{chave,revision:0,data}})).status,409);marks.push('stale_revision_rejected');
  assert.deepEqual((await call(`/api/painel?chave=${chave}`)).data.workspace.data.favorites,['c1']);marks.push('stale_write_did_not_land');
- const big=randomBytes(2_500_000);
+ const big=Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),randomBytes(2_500_000)]);
+ assert.equal((await call(`/api/painel/arquivo?chave=${chave}`,{method:'POST',raw:Buffer.from('<html><script>alert(1)</script>'),type:'image/png'})).status,415);marks.push('fake_png_rejected');
  assert.equal((await call(`/api/painel/arquivo?chave=${chave}`,{method:'POST',raw:big,type:'text/plain'})).status,415);marks.push('unknown_file_type_rejected');
  const uploaded=await call(`/api/painel/arquivo?chave=${chave}`,{method:'POST',raw:big,type:'image/png'});assert.equal(uploaded.status,201);assert.match(uploaded.data.url,/^\/api\/painel\/arquivo\/[0-9a-f-]{36}$/);marks.push('file_stored_across_chunks');
  assert.equal((await call(uploaded.data.url,{auth:false,raw:''})).status,401);marks.push('anonymous_file_blocked');
