@@ -8,6 +8,6 @@ export async function POST(request:Request){
  try{
   const r=await buscarFundoVerde(parsed.data.tema,parsed.data.formato);
   if(!r.ok)return Response.json({codigo:r.codigo,mensagem:r.mensagem},{status:STATUS[r.codigo],headers:cabecalhos});
-  return Response.json({candidatos:r.candidatos},{headers:cabecalhos});
+  return Response.json({termo:r.termo,escolhido:r.escolhido,candidatos:r.candidatos},{headers:cabecalhos});
  }catch(error){console.error('Fundo verde busca failed',error instanceof Error?error.message:'');return Response.json({codigo:'erro_interno',mensagem:'Não foi possível buscar agora.'},{status:500,headers:cabecalhos})}
 }
