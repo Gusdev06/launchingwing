@@ -58,3 +58,9 @@ export const rateLimits=sqliteTable('rate_limits',{
  windowStart:integer('window_start').notNull(),
  count:integer('count').notNull().default(0),
 });
+// Cache de 24 h das buscas de fundo verde (a Pixabay exige; poupa o limite da Pexels).
+export const fundoVerdeBuscas=sqliteTable('fundo_verde_buscas',{
+ chave:text('chave').primaryKey(),
+ resposta:text('resposta').notNull(),
+ criadoEm:integer('criado_em').notNull(),
+});
