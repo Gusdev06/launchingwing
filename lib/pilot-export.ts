@@ -1,6 +1,6 @@
 import type {PilotRun} from './pilot-model';
 
-type ZipEntry = {name:string;data:Uint8Array<ArrayBuffer>};
+export type ZipEntry = {name:string;data:Uint8Array<ArrayBuffer>};
 type AssetReader = (url:string)=>Promise<Response>;
 const encoder=new TextEncoder();
 const crcTable=Uint32Array.from({length:256},(_,index)=>{
@@ -13,11 +13,11 @@ function crc32(data:Uint8Array){
  for(const byte of data)crc=(crc>>>8)^crcTable[(crc^byte)&255];
  return (crc^0xffffffff)>>>0;
 }
-function safeName(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)||'peca'}
+export function safeName(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)||'peca'}
 
 // Stored ZIP: PNGs and MP4s are already compressed. UTF-8 names and CRCs keep
 // the download readable by standard archive tools without another dependency.
-function zip(entries:ZipEntry[]){
+export function zip(entries:ZipEntry[]){
  const files:BlobPart[]=[],directory:BlobPart[]=[];
  let offset=0,directorySize=0;
  for(const entry of entries){

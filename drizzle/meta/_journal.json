@@ -15,6 +15,41 @@
       "when": 1789111592020,
       "tag": "0001_round_winter_soldier",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790520866115,
+      "tag": "0002_nostalgic_chameleon",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790521430483,
+      "tag": "0003_keen_stick",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790549047453,
+      "tag": "0004_pretty_vermin",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790550705833,
+      "tag": "0005_dear_slapstick",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790684119189,
+      "tag": "0006_new_shiver_man",
+      "breakpoints": true
     }
   ]
 }

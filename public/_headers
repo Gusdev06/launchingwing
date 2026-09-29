@@ -1,0 +1,8 @@
+# Mesmos cabeçalhos de next.config.ts, para o que a Cloudflare entrega direto (página inicial e arquivos estáticos).
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
