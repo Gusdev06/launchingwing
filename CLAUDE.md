@@ -19,6 +19,8 @@ node scripts/painel/access-smoke.mjs # JWT do Cloudflare Access, sem servidor
 npm run db:migrate:local             # tabelas no banco do dev (depois de npm run build)
 ```
 
+Provar: `npx tsc --noEmit && npm run build && npm run lint`, depois os `scripts/*/smoke.mjs` com o dev rodando.
+
 Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver README). O ChatGPT Sites saiu em 28/09/2026. Login por Cloudflare Access (`lib/access-jwt.ts`).
 
 ## Arquivos que importam
@@ -38,7 +40,7 @@ Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver
 - Dados do usuário ficam no servidor, nunca em localStorage. IndexedDB só como cache de rascunho.
 - Toda rota privada: identidade pelo cabeçalho, filtro por `owner_id`, `Cache-Control: private, no-store`.
 - Escrita concorrente: número de revisão, nunca "último que gravou ganha".
-- Segredos só em variáveis do Sites e `.env.local` (ignorado). Nada no front.
+- Segredos só em `.dev.vars` (ignorado) e nos segredos do Worker na Cloudflare. Nada no front.
 - Páginas privadas com `robots: noindex` e `dynamic='force-dynamic'`.
 
 ## Estilo
@@ -50,4 +52,4 @@ Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver
 
 ## Fluxo de issue
 
-`/issue-start <descrição>` planeja, `/issue-verify` prova, `/issue-close` commita. Uma issue por vez.
+Da raiz: `/issues` e `/issue launchingwing <número>`. Dentro desta pasta: `/issue-start <descrição>`, `/issue-verify`, `/issue-close`. Uma issue por vez.
