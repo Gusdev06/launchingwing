@@ -1,0 +1,15 @@
+# Copie para .dev.vars para o dev local. Em producao, as mesmas chaves vao nas variaveis do Sites.
+# Geracao de imagem por IA (ChatGPT Image, OpenAI). Sem a chave o botao avisa que nao esta conectado.
+OPENAI_API_KEY=
+# Opcional: outro modelo (padrao gpt-image-2.5-flare)
+# OPENAI_IMAGE_MODEL=
+# So para teste: aponta para a OpenAI falsa de scripts/painel/arte-smoke.mjs
+# OPENAI_BASE_URL=http://127.0.0.1:8790
+# Dev local: o login de teste do Sites (cabeçalhos do ChatGPT) só vale com esta linha. Nunca em produção.
+ALLOW_CHATGPT_HEADERS=1
+# Login fora do ChatGPT Sites (Cloudflare Access). Vazio no dev: o login local de teste continua valendo.
+CF_ACCESS_TEAM_DOMAIN=
+CF_ACCESS_AUD=
+# Gerador privado do piloto (fora deste repositorio)
+LAUNCHWING_ENGINE_URL=
+LAUNCHWING_ENGINE_TOKEN=

@@ -1,4 +1,36 @@
-# Launchwing — landing page Lift
+# Launchwing
+
+## Publicar sem o ChatGPT Sites (decisão de 28/09/2026)
+
+**No ar desde 28/09/2026** em https://launchwing.launchwing.workers.dev, na conta Cloudflare do Nicolas (Worker `launchwing`, D1 `launchwing`, migrações 0000 a 0005 aplicadas). Login ainda não configurado: páginas privadas voltam para a landing e cabeçalho de identidade falso responde 401 (conferido por execução). Falta criar o Zero Trust (Access) e as variáveis do RunPod.
+
+O app roda direto na Cloudflare (Workers e D1), sem o Sites no meio. O login passa a ser o Cloudflare Access (código por e-mail, grátis até 50 usuários): o Worker só aceita o JWT que o Access injeta, verificado em `lib/access-jwt.ts` (prova em `scripts/painel/access-smoke.mjs`, 8 casos). Sem `CF_ACCESS_TEAM_DOMAIN` e `CF_ACCESS_AUD`, o app volta a aceitar os cabeçalhos do ChatGPT e o login local de teste.
+
+Uma vez, no painel da Cloudflare: criar o banco D1 (anotar id e nome), um token de API com permissão de Workers e D1, e em Zero Trust > Access uma aplicação para o domínio do Worker (anotar o `aud`). Depois, na máquina de quem publica:
+
+```bash
+export CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_D1_ID=... CLOUDFLARE_D1_NAME=launchwing
+npm run deploy                      # build, migrações remotas (drizzle/ vira migrations/) e wrangler deploy
+npx wrangler secret put OPENAI_API_KEY -c dist/server/wrangler.json      # idem CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
+```
+
+Dev local: `npm run build && npm run db:migrate:local` cria as tabelas no banco do `npm run dev`. CI em `.github/workflows/verificar.yml`: tipos, build, lint (avisos antigos não bloqueiam), provas sem servidor e os três smokes contra o servidor local com RunPod simulado.
+
+**Limite de taxa e aviso de crédito — 27/09/2026 (noite):** tabela `rate_limits` no D1 (migração `0005_dear_slapstick.sql`, sem KV): cadastro de e-mail 10 por hora por IP (`CF-Connecting-IP`), gravações do painel 120 por minuto por usuário, envios de arquivo 60 por hora por usuário; excesso responde 429 com mensagem. Se o banco falhar, deixa passar. `GET /api/painel/arte` passa a trazer o crédito da conta RunPod (GraphQL `myself.clientBalance`) e `saldoBaixo` abaixo de US$ 3; a tela "Uso e plano" mostra conexão, tetos diários e crédito, e o diálogo de geração avisa quando o crédito está baixo. Provas: `scripts/painel/smoke.mjs` 20 casos, `arte-smoke.mjs` 22 casos, tela real.
+
+**Auditoria e correções — 27/09/2026 (noite):** `next` 16.2.6 para 16.3.6 (duas falhas, uma crítica), `react`/`react-dom`/`react-server-dom-webpack` 19.3.0, `vinext` beta.13, `vite` 8.3.1, `@cloudflare/vite-plugin` 1.61, `wrangler` 4.142 e `@cloudflare/workers-types` 5. `npm audit`: de 24 avisos (1 crítico, 16 altos) para 8 moderados, todos em ferramentas de build. Build, tipos, lint e os 5 smokes iguais a antes. Também: foto de partida da biblioteca pública sobe como arquivo da conta antes da geração (um Worker não busca a própria URL com segurança) e cabeçalho `X-Nome` malformado devolve 400 em vez de 500. Pendentes da auditoria: teste de cabeçalho de identidade contra o site no ar (só depois do deploy), limite de taxa no cadastro e aviso de saldo do RunPod.
+
+**Troca para o ChatGPT Image (28/09/2026):** a imagem por IA passou a sair da OpenAI (`gpt-image-2.5-flare`, `lib/openai-imagem.ts`), a pedido do Gustavo. A resposta vem direto, sem fila; com foto de partida usa `/images/edits`. Variável `OPENAI_API_KEY` (opcional `OPENAI_IMAGE_MODEL`). O vídeo por IA está desligado até o Gustavo decidir o caminho; o código do RunPod segue em `lib/runpod.ts`. Os registros abaixo sobre RunPod são históricos.
+
+**Vídeo por IA no editor — 27/09/2026:** "Criar vídeo com IA" no editor gera pelo endpoint MiniMax H3 (`RUNPOD_H3_ENDPOINT_ID`), com formato (16:9, 9:16, 1:1), duração de 2 a 15 s e primeiro quadro opcional (foto do slide ou da galeria). O MP4 com áudio vira arquivo da conta, entra na galeria em "Vídeos por IA" e passa a ser o vídeo do conteúdo. Teto de 20 vídeos por conta em 24 h. Coluna `kind` em `art_jobs` (migração `0004_pretty_vermin.sql`). Prova: `scripts/painel/arte-smoke.mjs` com 20 verificações (RunPod falso) e tela real. Vídeo real leva 1 a 4 minutos e custa por volta de R$ 0,40 na conta do Gustavo; não foi exercitado em GPU.
+
+**Imagem a partir de uma foto — 27/09/2026:** no diálogo "Criar imagem com IA", "Ponto de partida" aceita a foto atual do slide ou qualquer imagem da galeria, com "Quanto mudar" de 10% a 100% (imagem para imagem do Krea 2, nós 13 a 15 do workflow). O servidor lê a foto da conta ou da biblioteca pública do site (até 6 MB, PNG/JPG/WebP); URL externa é recusada. Prova: `scripts/painel/arte-smoke.mjs` subiu para 17 verificações (foto enviada byte a byte ao RunPod falso) e tela real.
+
+**Baixar pacote para postar à mão — 27/09/2026:** na galeria, "Baixar pacote" gera um ZIP com os conteúdos salvos (filtro atual), e no editor "Baixar esta peça" gera o da peça aberta. Cada pasta traz as fotos numeradas (ou o vídeo), `legenda.txt` e `textos-dos-slides.txt`; o texto sobre a foto não é gravado na imagem. Exportador em `lib/workspace-export.ts`, reaproveitando o escritor de ZIP do piloto. Prova: `scripts/painel/export-smoke.mjs` (8 verificações, ZIP lido pelo Python) e tela real (ZIP de 1 MB gerado no navegador).
+
+**Imagem por IA no editor — 27/09/2026:** botão "Criar imagem com IA" no editor de slides gera pelo RunPod Serverless da conta do Gustavo (endpoint Krea 2, mesmo workflow de `krea2-comfy-api`). Rotas `POST /api/painel/arte` e `GET /api/painel/arte/{id}`; tabela `art_jobs` (migração `0003_keen_stick.sql`); a imagem pronta vira arquivo da conta e entra na galeria em "Imagens por IA". Teto de 60 imagens por conta em 24 h. Variáveis: `RUNPOD_API_KEY`, `RUNPOD_KREA2_ENDPOINT_ID` (modelo em `.dev.vars.example`; em produção, nas variáveis do Sites). Sem elas o botão avisa que não está conectado. Provado só contra um RunPod falso (`scripts/painel/arte-smoke.mjs`, 13 verificações, e tela real); não foi exercitado contra GPU de verdade, o que custa dinheiro e depende da chave dele.
+
+**Painel salvo na conta — 27/09/2026:** `/painel` deixa de guardar dados só no navegador. Cada usuário tem uma linha em `workspaces` (D1) com número de revisão, e os arquivos enviados (logo, mídias, até 20 MB) ficam em `workspace_files` em pedaços de 900 KB, servidos por `/api/painel/arquivo/{id}` só ao dono. Na primeira abertura, o rascunho antigo do IndexedDB sobe uma vez para a conta. Migração `0002_nostalgic_chameleon.sql` (aplicar no D1 de produção pelo fluxo do Sites antes de publicar). Prova: `scripts/painel/smoke.mjs`, 19 verificações, e tela real conferida no navegador. Contexto curto para agentes em `CLAUDE.md` e comandos `/issue-*` em `.claude/commands`.
 
 **Produto local — 12/09/2026:** espaço completo de frontend em `/painel`, autenticado; navegação também integrada ao piloto após onboarding. 14 telas, editor de slides, galeria/Marca e planejamento local via IndexedDB. Conteúdos reais continuam usando API/revisão/exportador do piloto. Novas integrações sociais, tendências, renderização de arte e jobs de campanha ainda pendentes. [Registro completo](../context/frontend-mvp-2026-09-12.md). TypeScript e build Sites aprovados, sem novo deploy.
 
