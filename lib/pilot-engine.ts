@@ -8,7 +8,7 @@ export async function engineFetch(path:string,init?:RequestInit){
  if(!config.LAUNCHWING_ENGINE_URL||!config.LAUNCHWING_ENGINE_TOKEN)throw new Error('O gerador privado ainda não está conectado neste ambiente.');
  let response:Response;
  try{response=await fetch(`${config.LAUNCHWING_ENGINE_URL.replace(/\/$/,'')}${path}`,{...init,headers:{'Authorization':`Bearer ${config.LAUNCHWING_ENGINE_TOKEN}`,'Content-Type':'application/json',...init?.headers},signal:AbortSignal.timeout(15000)})}catch{throw new Error('O gerador está temporariamente indisponível. Seu caso ficou salvo; tente novamente em instantes.')}
- if(!response.ok){const body=await response.json().catch(()=>null) as {error?:string}|null;throw new Error(body?.error||'Não foi possível acessar a geração. Tente novamente.')}
+ if(!response.ok){const body=await response.json().catch(()=>null) as {error?:string}|null;throw Object.assign(new Error(body?.error||'Não foi possível acessar a geração. Tente novamente.'),{status:response.status})}
  return response;
 }
 export function runData(run:PilotRun):PilotData{
