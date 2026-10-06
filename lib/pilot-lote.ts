@@ -1,7 +1,7 @@
 // Conferência do lote que o motor devolve (sem Cloudflare, para provar em Node: scripts/pilot/lote-smoke.mjs).
 import {z} from 'zod';
 import type {PilotPiece} from './pilot-model';
-const pieceSchema=z.object({id:z.string().regex(/^[a-z0-9_-]{1,60}$/),format:z.string().max(150),hook:z.string().min(1).max(500),caption:z.string().min(1).max(2200),rationale:z.string().max(5000),provenance:z.string().max(10000),assets:z.array(z.object({file:z.string().max(2000),kind:z.enum(['image','video']),alt:z.string().max(1500),poster:z.string().max(2000).optional()})).min(1).max(6)});
+const pieceSchema=z.object({id:z.string().regex(/^[a-z0-9_-]{1,60}$/),format:z.string().max(150),hook:z.string().min(1).max(500),caption:z.string().min(1).max(2200),rationale:z.string().max(5000),copy:z.enum(['PAS','BAB','AIDA','FAB','4Ps','QUEST']).optional(),provenance:z.string().max(10000),assets:z.array(z.object({file:z.string().max(2000),kind:z.enum(['image','video']),alt:z.string().max(1500),poster:z.string().max(2000).optional()})).min(1).max(6)});
 function mediaUrl(runId:string,jobId:string,file:string){const name=file.split('/').pop()!;if(!/^[a-z0-9_-]+\.(mp4|png|jpe?g|webp)$/.test(name))throw new Error('O gerador retornou um arquivo inválido.');return `/api/pilot/${runId}/assets/${jobId}/${name}`}
 export function generatedPieces(runId:string,jobId:string,result:unknown,partial=false,unique=false):PilotPiece[]{
  const {pieces,semMeme}=z.object({pieces:z.array(pieceSchema).min(partial?0:2).max(3),semMeme:z.string().max(1000).optional()}).parse(result);
@@ -13,7 +13,9 @@ export function generatedPieces(runId:string,jobId:string,result:unknown,partial
 // Por que o meme não veio (o portão do motor reprovou ou não conseguiu conferir); vira aviso na tela de revisão.
 export function avisoDoLote(result:unknown):string|undefined{const s=(result as {semMeme?:unknown}|null)?.semMeme;return typeof s==='string'&&s.trim()?s.trim().slice(0,1000):undefined}
 // O que o motor recebe do histórico do dono: os últimos ganchos (para não repetir) e os reprovados com o motivo (para aprender).
-export function historicoDoDono(pieces:Pick<PilotPiece,'hook'|'status'|'feedback'>[]):{previousHooks?:string[];reprovados?:{hook:string;motivo:string}[]}{
+// copiasAnteriores: o modelo de copy das peças do último lote (id sem o prefixo do pedido), para o motor não repetir na mesma peça.
+export function historicoDoDono(pieces:(Pick<PilotPiece,'hook'|'status'|'feedback'>&{id?:string;copy?:string})[]):{previousHooks?:string[];reprovados?:{hook:string;motivo:string}[];copiasAnteriores?:{id:string;copy:string}[]}{
  const reprovados=pieces.filter(p=>p.status==='changes'||p.status==='rejected').slice(-8).map(p=>({hook:p.hook,motivo:p.feedback}));
- return {...(pieces.length?{previousHooks:pieces.slice(-8).map(p=>p.hook)}:{}),...(reprovados.length?{reprovados}:{})};
+ const copiasAnteriores=pieces.slice(-3).filter(p=>p.id&&p.copy).map(p=>({id:p.id!.split('-').pop()!,copy:p.copy!}));
+ return {...(pieces.length?{previousHooks:pieces.slice(-8).map(p=>p.hook)}:{}),...(reprovados.length?{reprovados}:{}),...(copiasAnteriores.length?{copiasAnteriores}:{})};
 }

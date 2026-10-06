@@ -19,4 +19,9 @@ assert.deepEqual(h.previousHooks,['a','b','c','d']);
 assert.deepEqual(h.reprovados,[{hook:'b',motivo:'sem graça'},{hook:'c',motivo:'tom errado'}]);
 assert.deepEqual(historicoDoDono([]),{});
 assert.equal(historicoDoDono(Array.from({length:12},(_,i)=>peca('r'+i,'rejected','x'))).reprovados.length,8);
+// Copy por modelos (06/10): o site guarda o modelo de copy de cada peça e devolve os do último lote ao motor, para não repetir.
+const comCopy=generatedPieces('r','job-1',{pieces:[{...meme,copy:'BAB'},{...carrossel('educativo'),copy:'PAS'},{...carrossel('amiga'),copy:'BAB'}]},false,true);
+assert.deepEqual(comCopy.map(p=>p.copy),['BAB','PAS','BAB']);
+assert.deepEqual(historicoDoDono(comCopy).copiasAnteriores,[{id:'meme',copy:'BAB'},{id:'educativo',copy:'PAS'},{id:'amiga',copy:'BAB'}]);
+assert.equal(historicoDoDono([peca('a','approved')]).copiasAnteriores,undefined);
 console.log('lote-smoke ok');
