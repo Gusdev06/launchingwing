@@ -12,7 +12,8 @@ const { d1, r2 } = hostingConfig;
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
-  main: "vinext/server/fetch-handler",
+  main: "./worker/index.ts",
+  triggers: { crons: ["*/2 * * * *"] },
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1
     ? [
@@ -23,6 +24,8 @@ const localBindingConfig = {
         },
       ]
     : [],
+  // Imagens e vídeos das peças (lib/midia.ts). No ar, o id vem de CLOUDFLARE_KV_MIDIA_ID; no computador, um KV local.
+  kv_namespaces: [{ binding: "MIDIA", id: process.env.CLOUDFLARE_KV_MIDIA_ID || "launchwing-midia-local" }],
   r2_buckets: r2
     ? [
         {
