@@ -1,7 +1,9 @@
 import {engineFetch,initialApiData,syncGeneration} from '@/lib/pilot-engine';
 import {normalizeProductUrl,onboardingSchema,type PilotData} from '@/lib/pilot-model';
 import {initialPilotData} from '@/lib/pilot-cases';
-import {createRun,listRuns} from '@/lib/pilot-store';
+import {createRun,listRuns,casosNasUltimas24h} from '@/lib/pilot-store';
+// Limite por conta: a IA grátis aguenta poucos casos bons por dia para todos (decisão do Nicolas em 06/10: 3).
+const CASOS_POR_DIA=3;
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
 export async function GET(request:Request){
  const owner=await pilotIdentity(request);if(!owner)return Response.json({error:'Entre para abrir seus casos.'},{status:401,headers:pilotHeaders});
@@ -12,6 +14,7 @@ export async function POST(request:Request){
  let url:string,mode:'api'|'demo',extra:Partial<PilotData>={};
  try{const body=await readPilotBody(request);mode=body?.mode==='demo'?'demo':'api';if(body?.flow==='blitz'&&mode==='api'){const answers=onboardingSchema.parse(body.answers);extra={flow:'blitz',onboarding:{step:2,answers,completedAt:null},batches:0};if(typeof body.description==='string'&&body.description.trim()){if(body.description.trim().length<40||body.description.length>3000)throw new Error('Descreva o produto em 40 a 3.000 caracteres.');extra.descriptionInput=body.description.trim()}}url=extra.descriptionInput?'':normalizeProductUrl(body?.url)}catch(error){return Response.json({error:error instanceof Error?error.message:'Confira o link.'},{status:400,headers:pilotHeaders})}
  try{
+  if(mode==='api'&&await casosNasUltimas24h(owner)>=CASOS_POR_DIA)return Response.json({error:`Você já criou ${CASOS_POR_DIA} casos nas últimas 24 horas. Tente de novo amanhã.`},{status:429,headers:pilotHeaders});
   if(mode==='api'){const health=await(await engineFetch('/health')).json() as {ready:boolean};if(!health.ready)throw new Error('Complete as conexões do gerador privado antes de começar.')}
   let run=await createRun(owner,mode==='demo'?{...initialPilotData(url),mode:'demo'}:initialApiData(url,extra));
   if(mode==='api'){try{run=await syncGeneration(owner,run)}catch{/* Saved claim resumes on the next progress request. */}}

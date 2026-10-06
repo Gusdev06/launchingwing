@@ -20,3 +20,9 @@ export async function saveRun(owner:string,id:string,revision:number,data:PilotD
  const result=await db().prepare('UPDATE pilot_runs SET data=?,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?').bind(JSON.stringify(data),now,id,owner,revision).run();
  return result.meta.changes===1;
 }
+// Casos com o motor (mode api) criados pela conta nas últimas 24 horas, para o limite por conta.
+export async function casosNasUltimas24h(owner:string){
+ const desde=new Date(Date.now()-86400000).toISOString();
+ const r=await db().prepare("SELECT COUNT(*) AS n FROM pilot_runs WHERE owner_id=? AND created_at>? AND json_extract(data,'$.mode')='api'").bind(owner,desde).first<{n:number}>();
+ return r?.n??0;
+}

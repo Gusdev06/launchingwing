@@ -5,6 +5,8 @@ export type PilotPiece={
  id:string; format:string; hook:string; caption:string; rationale:string;
  assets:{url:string;kind:'image'|'video';alt:string;poster?:string}[];
  provenance:string; copy?:string; status:ReviewStatus; feedback:string; reviewSeconds:number;
+ // Postagem da peça aprovada (lib/rotina.ts). simulacao: ainda sem contas das redes, nada foi publicado de verdade.
+ postagem?:{status:'postada';em:string;simulacao:boolean};
 };
 export type PilotContext={name:string;description:string;audience:string;situations:string};
 export const onboardingSchema=z.object({
@@ -23,6 +25,8 @@ export type PilotData={
  flow?:'blitz';onboarding?:PilotOnboarding;descriptionInput?:string;analysisJobId?:string;batches?:number;
  // Aviso do último lote (ex.: o meme não passou na conferência do motor e não foi entregue).
  aviso?:string;
+ // Último lote do motor com imagens e vídeos já guardados na Cloudflare (lib/midia.ts).
+ midiaGuardada?:string;
  context:PilotContext;facts:string[];sources:PilotSource[];pieces:PilotPiece[];
  contextConfirmedAt:string|null;
  events:{at:string;kind:string;pieceId?:string;status?:ReviewStatus}[];
