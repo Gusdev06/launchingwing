@@ -2,6 +2,8 @@ import {env} from 'cloudflare:workers';
 import {z} from 'zod';
 import {contextSchema,type PilotData,type PilotRun,type PilotGeneration,type PilotPiece} from './pilot-model';
 import {findRun,saveRun} from './pilot-store';
+import {generatedPieces,avisoDoLote,historicoDoDono} from './pilot-lote';
+export {generatedPieces};
 
 export async function engineFetch(path:string,init?:RequestInit){
  const config=env as unknown as {LAUNCHWING_ENGINE_URL?:string;LAUNCHWING_ENGINE_TOKEN?:string};
@@ -18,13 +20,6 @@ export function generation(kind:PilotGeneration['kind']):PilotGeneration{return 
 export function initialApiData(url:string,extra:Partial<PilotData>={}):PilotData{return {url,caseId:null,mode:'api',phase:'analyzing',context:{name:'',description:'',audience:'',situations:''},facts:[],sources:[],pieces:[],contextConfirmedAt:null,events:[{at:new Date().toISOString(),kind:'api_case_created'}],generation:generation('analysis'),...extra}}
 const jobSchema=z.object({id:z.string().uuid(),kind:z.enum(['analysis','production']),status:z.enum(['queued','running','succeeded','failed']),stage:z.string().max(100),message:z.string().max(1000),progress:z.number().min(0).max(100),error:z.string().max(1000).nullable(),result:z.unknown()});
 const analysisSchema=z.object({context:contextSchema,facts:z.array(z.string().max(1000)).max(15),uncertainties:z.array(z.string().max(1500)).max(15),sources:z.array(z.object({url:z.string().url(),label:z.string().max(150),checkedAt:z.string().max(30)})).max(5)});
-const pieceSchema=z.object({id:z.string().regex(/^[a-z0-9_-]{1,60}$/),format:z.string().max(150),hook:z.string().min(1).max(500),caption:z.string().min(1).max(2200),rationale:z.string().max(5000),provenance:z.string().max(10000),assets:z.array(z.object({file:z.string().max(2000),kind:z.enum(['image','video']),alt:z.string().max(1500),poster:z.string().max(2000).optional()})).min(1).max(6)});
-function mediaUrl(runId:string,jobId:string,file:string){const name=file.split('/').pop()!;if(!/^[a-z0-9_-]+\.(mp4|png|jpe?g|webp)$/.test(name))throw new Error('O gerador retornou um arquivo inválido.');return `/api/pilot/${runId}/assets/${jobId}/${name}`}
-export function generatedPieces(runId:string,jobId:string,result:unknown,partial=false,unique=false):PilotPiece[]{
- const {pieces}=z.object({pieces:z.array(pieceSchema).min(partial?0:3).max(3)}).parse(result);
- if(new Set(pieces.map(p=>p.id)).size!==pieces.length||pieces.some(p=>!(p.assets.length===1&&p.assets[0].kind==='video')&&!(p.assets.length===6&&p.assets.every(a=>a.kind==='image')))||(!partial&&pieces.filter(p=>p.assets[0].kind==='video').length!==1))throw new Error('O lote não contém os três formatos esperados.');
- return pieces.map(piece=>({...piece,id:unique?`${jobId}-${piece.id}`:piece.id,status:'pending',feedback:'',reviewSeconds:0,assets:piece.assets.map(a=>({url:mediaUrl(runId,jobId,a.file),kind:a.kind,alt:a.alt,...(a.poster?{poster:mediaUrl(runId,jobId,a.poster)}:{})}))}));
-}
 export function mergeGeneratedPieces(existing:PilotPiece[],incoming:PilotPiece[]){const seen=new Set(existing.map(p=>p.id));return [...existing,...incoming.filter(p=>!seen.has(p.id))]}
 export function queueProduction(data:PilotData){data.generation=generation('production');data.phase='generating';data.batches=(data.batches??0)+1;data.events.push({at:new Date().toISOString(),kind:'api_production_requested'})}
 // The claim is saved before talking to the engine. Repeated requests reuse its
@@ -35,7 +30,7 @@ export async function syncGeneration(owner:string,run:PilotRun){
   if(run.flow==='blitz'&&current.kind==='analysis'&&run.onboarding?.completedAt){const next=runData(run);next.analysisJobId=current.jobId;queueProduction(next);if(await saveRun(owner,run.id,run.revision,next))return syncGeneration(owner,(await findRun(owner,run.id))!);return (await findRun(owner,run.id))!}return run;
  }
  let jobId=current.jobId;
- if(!jobId){const input=current.kind==='analysis'?{url:run.url,...(run.flow==='blitz'?{prefetch:true}:{}),...(run.descriptionInput?{description:run.descriptionInput}:{})}:{url:run.url,context:run.context,facts:run.facts,sources:run.sources,...(run.flow==='blitz'?{analysisJobId:run.analysisJobId,preferences:{...run.onboarding?.answers,...(run.pieces.length?{previousHooks:run.pieces.slice(-8).map(p=>p.hook)}:{})}}:{})};const body=await(await engineFetch('/jobs',{method:'POST',body:JSON.stringify({key:current.key,kind:current.kind,input})})).json();jobId=z.object({id:z.string().uuid()}).parse(body).id}
+ if(!jobId){const input=current.kind==='analysis'?{url:run.url,...(run.flow==='blitz'?{prefetch:true}:{}),...(run.descriptionInput?{description:run.descriptionInput}:{})}:{url:run.url,context:run.context,facts:run.facts,sources:run.sources,...(run.flow==='blitz'?{analysisJobId:run.analysisJobId,preferences:{...run.onboarding?.answers,...historicoDoDono(run.pieces)}}:{})};const body=await(await engineFetch('/jobs',{method:'POST',body:JSON.stringify({key:current.key,kind:current.kind,input})})).json();jobId=z.object({id:z.string().uuid()}).parse(body).id}
  if(current.retryRequested)await engineFetch(`/jobs/${jobId}/retry`,{method:'POST',body:'{}'});
  const job=jobSchema.parse(await(await engineFetch(`/jobs/${jobId}`)).json());
  if(job.kind!==current.kind)throw new Error('A geração não corresponde a este caso.');
@@ -43,10 +38,10 @@ export async function syncGeneration(owner:string,run:PilotRun){
  if(job.status==='failed')next.phase='failed';
  if(run.flow==='blitz'&&job.result){
   if(job.kind==='analysis'){const partial=analysisSchema.safeParse(job.result);if(partial.success)Object.assign(next,partial.data)}
-  else {try{next.pieces=mergeGeneratedPieces(run.pieces,generatedPieces(run.id,jobId,job.result,job.status!=='succeeded',true))}catch{if(job.status==='succeeded'){next.phase='failed';next.generation.status='failed';next.generation.error='A geração terminou com um lote incompleto. As peças prontas continuam salvas.';next.generation.message=next.generation.error}}}
+  else {try{next.pieces=mergeGeneratedPieces(run.pieces,generatedPieces(run.id,jobId,job.result,job.status!=='succeeded',true));if(job.status==='succeeded')next.aviso=avisoDoLote(job.result)}catch{if(job.status==='succeeded'){next.phase='failed';next.generation.status='failed';next.generation.error='A geração terminou com um lote incompleto. As peças prontas continuam salvas.';next.generation.message=next.generation.error}}}
  }
  if(job.status==='succeeded'&&next.generation.status!=='failed'){
-  try{if(job.kind==='analysis'){Object.assign(next,analysisSchema.parse(job.result));next.phase='context';next.analysisJobId=jobId;if(run.flow==='blitz'&&run.onboarding?.completedAt)queueProduction(next)}else{if(run.flow!=='blitz')next.pieces=generatedPieces(run.id,jobId,job.result);next.phase='review'}next.events.push({at:new Date().toISOString(),kind:`api_${job.kind}_completed`})}
+  try{if(job.kind==='analysis'){Object.assign(next,analysisSchema.parse(job.result));next.phase='context';next.analysisJobId=jobId;if(run.flow==='blitz'&&run.onboarding?.completedAt)queueProduction(next)}else{if(run.flow!=='blitz')next.pieces=generatedPieces(run.id,jobId,job.result);next.aviso=avisoDoLote(job.result);next.phase='review'}next.events.push({at:new Date().toISOString(),kind:`api_${job.kind}_completed`})}
   catch{next.phase='failed';next.generation.status='failed';next.generation.error='A geração terminou com dados fora do formato esperado. Abra outro caso para gerar um novo lote.';next.generation.message=next.generation.error}
  }
  if(next.generation.kind==='analysis'&&next.generation.status!=='failed'&&run.flow==='blitz'&&run.onboarding?.completedAt&&analysisSchema.safeParse(job.result).success){next.analysisJobId=jobId;queueProduction(next)}

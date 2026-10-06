@@ -21,6 +21,8 @@ export type PilotData={
  url:string;caseId:string|null;phase:'queued'|'context'|'ready'|'review'|'analyzing'|'generating'|'failed';
  mode?:'api'|'demo';generation?:PilotGeneration;uncertainties?:string[];
  flow?:'blitz';onboarding?:PilotOnboarding;descriptionInput?:string;analysisJobId?:string;batches?:number;
+ // Aviso do último lote (ex.: o meme não passou na conferência do motor e não foi entregue).
+ aviso?:string;
  context:PilotContext;facts:string[];sources:PilotSource[];pieces:PilotPiece[];
  contextConfirmedAt:string|null;
  events:{at:string;kind:string;pieceId?:string;status?:ReviewStatus}[];
