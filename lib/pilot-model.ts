@@ -4,7 +4,7 @@ export type ReviewStatus='pending'|'approved'|'changes'|'rejected';
 export type PilotPiece={
  id:string; format:string; hook:string; caption:string; rationale:string;
  assets:{url:string;kind:'image'|'video';alt:string;poster?:string}[];
- provenance:string; status:ReviewStatus; feedback:string; reviewSeconds:number;
+ provenance:string; copy?:string; status:ReviewStatus; feedback:string; reviewSeconds:number;
 };
 export type PilotContext={name:string;description:string;audience:string;situations:string};
 export const onboardingSchema=z.object({
