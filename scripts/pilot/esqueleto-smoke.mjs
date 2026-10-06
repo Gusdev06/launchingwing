@@ -9,7 +9,7 @@ import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {assertPostagem} from './esqueleto-regras.mjs';
 
-const porta=8797,base=`http://127.0.0.1:${porta}`,portaMotor=8796,token='t'.repeat(40),email='esqueleto@exemplo.com';
+const porta=8797,base=`http://127.0.0.1:${porta}`,portaMotor=8796,token='t'.repeat(40),email=`esqueleto-${randomUUID().slice(0,8)}@exemplo.com`;
 // ---- motor de mentira ----
 const jobs=new Map(),pedidos=[];let analiseLiberada=false,arquivosNoMotor=true;
 const carrossel=id=>({id,format:`Slideshow ${id} · 6 slides`,hook:`gancho ${id}`,caption:'legenda',rationale:'a\nb',provenance:'p',copy:'PAS',assets:Array.from({length:6},(_,i)=>({file:`${id}-slide-0${i+1}.jpg`,kind:'image',alt:'slide'}))});
@@ -30,7 +30,7 @@ await new Promise(ok=>motor.listen(portaMotor,'127.0.0.1',ok));
 
 // ---- site ----
 let saida='';
-const servidor=spawn(process.execPath,['--import','./scripts/sites-env.mjs','./node_modules/wrangler/bin/wrangler.js','dev','--config','dist/server/wrangler.json','--local','--persist-to','.wrangler/state','--ip','127.0.0.1','--port',String(porta),'--inspector-port','0','--test-scheduled',
+const servidor=spawn(process.execPath,['--import','./scripts/sites-env.mjs','./node_modules/wrangler/bin/wrangler.js','dev','--config','dist/server/wrangler.json','--local','--persist-to','.wrangler/state','--ip','127.0.0.1','--port',String(porta),'--inspector-port','0',
  '--var',`LOGIN_PROPRIO:1`,'--var','LOGIN_EMAIL_TESTE:1','--var',`LAUNCHWING_ENGINE_URL:http://127.0.0.1:${portaMotor}`,'--var',`LAUNCHWING_ENGINE_TOKEN:${token}`],{stdio:['ignore','pipe','pipe']});
 servidor.stdout.on('data',d=>{saida+=d});servidor.stderr.on('data',d=>{saida+=d});
 const esperar=async(teste,ms)=>{const fim=Date.now()+ms;while(Date.now()<fim){if(await teste())return true;await new Promise(r=>setTimeout(r,250))}return false};
@@ -38,7 +38,7 @@ const marcas=[];
 try{
  assert.ok(await esperar(()=>/Ready on/i.test(saida),90000),'o servidor local não ligou:\n'+saida.slice(-2000));
  const pedir=async(caminho,{method='GET',corpo,cookie}={})=>{const r=await fetch(base+caminho,{method,redirect:'manual',headers:{...(cookie?{Cookie:cookie}:{}),...(corpo?{'Content-Type':'application/json',Origin:base}:{})},...(corpo?{body:JSON.stringify(corpo)}:{})});const t=await r.text();let d;try{d=JSON.parse(t)}catch{d=t}return {status:r.status,dados:d,corpo:t}};
- const rotina=async()=>{const r=await fetch(`${base}/__scheduled?cron=*/2+*+*+*+*`);assert.equal(r.status,200,'a rotina agendada não rodou')};
+ const rotina=async()=>{const r=await fetch(`${base}/cdn-cgi/local/scheduled?cron=*/2+*+*+*+*`);assert.equal(r.status,200,'a rotina agendada não rodou')};
  // entrar (login próprio, código no registro do servidor local)
  assert.equal((await pedir('/api/entrar/codigo',{method:'POST',corpo:{email}})).status,200);
  assert.ok(await esperar(()=>new RegExp(`codigo para ${email}: (\\d{6})`).test(saida),10000));

@@ -18,14 +18,15 @@ export async function guardarMidia(jobId:string,files:string[]){
  let copiados=0;
  for(const file of new Set(files)){
   if(!NOME.test(file)||await loja.get(chave(jobId,file),'stream').then(s=>{void s?.cancel();return !!s}))continue;
-  const r=await engineFetch(`/jobs/${jobId}/assets/${file}`);
+  const r=await engineFetch(`/jobs/${jobId}/assets/${file}`);if(!r.ok)throw new Error(`motor respondeu ${r.status} para ${jobId}/${file}`);
   await loja.put(chave(jobId,file),await r.arrayBuffer(),{metadata:{tipo:r.headers.get('Content-Type')||'application/octet-stream'}});
   copiados++;
  }
  return copiados;
 }
 
-// Nomes dos arquivos de um lote, tirados dos endereços das peças (/api/pilot/{run}/assets/{job}/{arquivo}).
+// Lote e arquivo tirados do endereço de uma peça: /api/pilot/{run}/assets/{job}/{arquivo}.
+export function loteDaUrl(url:string){const [,,,,pasta,jobId,file]=url.split('/');return pasta==='assets'&&jobId&&file?{jobId,file}:null}
 export function arquivosDoLote(pieces:{assets:{url:string;poster?:string}[]}[],jobId:string){
- return pieces.flatMap(p=>p.assets.flatMap(a=>[a.url,a.poster])).filter((u):u is string=>!!u&&u.split('/')[4]===jobId).map(u=>u.split('/')[5]);
+ return pieces.flatMap(p=>p.assets.flatMap(a=>[a.url,a.poster])).flatMap(u=>{const l=u?loteDaUrl(u):null;return l?.jobId===jobId?[l.file]:[]});
 }

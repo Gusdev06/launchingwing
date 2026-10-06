@@ -3,15 +3,12 @@
 // 2. Lotes prontos: guarda imagens e vídeos na Cloudflare (lib/midia.ts).
 // 3. Peças aprovadas: postagem. No esqueleto ela é simulada (sem contas das redes ainda): marca "postada" com a hora.
 import {env} from 'cloudflare:workers';
-import {syncGeneration} from './pilot-engine';
+import {runData as dados,syncGeneration} from './pilot-engine';
 import {findRun,saveRun} from './pilot-store';
-import {guardarMidia,arquivosDoLote} from './midia';
-import type {PilotData,PilotRun} from './pilot-model';
+import {guardarMidia,arquivosDoLote,loteDaUrl} from './midia';
 import {postarAprovadas} from './postagem';
 
 const db=()=>(env as unknown as {DB:D1Database}).DB;
-
-function dados(run:PilotRun):PilotData{const {id:_i,revision:_r,createdAt:_c,updatedAt:_u,...data}=run;return data}
 
 export async function rotina(){
  const desde=new Date(Date.now()-3*86400000).toISOString();
@@ -24,7 +21,7 @@ export async function rotina(){
    const pronto=run.generation;
    if(pronto?.kind==='production'&&pronto.status==='succeeded'&&pronto.jobId&&run.midiaGuardada!==pronto.jobId){
     // Todos os lotes do caso: se dois terminaram entre uma passada e outra, o anterior também fica guardado.
-    for(const job of new Set(run.pieces.flatMap(p=>p.assets.map(a=>a.url.split('/')[4])).filter(Boolean)))await guardarMidia(job,arquivosDoLote(run.pieces,job));
+    for(const job of new Set(run.pieces.flatMap(p=>p.assets.flatMap(a=>loteDaUrl(a.url)?.jobId??[]))))await guardarMidia(job,arquivosDoLote(run.pieces,job));
     if(await saveRun(dono,id,run.revision,{...dados(run),midiaGuardada:pronto.jobId}))run=(await findRun(dono,id))!;
    }
    const postado=postarAprovadas(dados(run),new Date().toISOString());
