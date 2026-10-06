@@ -2,6 +2,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { env } from "cloudflare:workers";
 import { verifyAccessJwt } from "@/lib/access-jwt";
+import { usuarioDaSessao, lembrarUsuario } from "@/lib/login-codigo";
+import { lojaD1, loginProprioLigado, tokenDoCookie } from "@/lib/login-d1";
 
 export type ChatGPTUser = {
   userId: string;
@@ -30,12 +32,30 @@ function accessConfig(): AccessConfig | null {
 }
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
+  // Login próprio (LOGIN_PROPRIO=1): a sessão do cookie vale primeiro; sem ela, segue para o Access, se houver.
+  if (loginProprioLigado()) {
+    try {
+      const sessao = await usuarioDaSessao(lojaD1(), tokenDoCookie(requestHeaders.get("cookie")));
+      if (sessao) return { userId: sessao.userId, email: sessao.email, fullName: null, displayName: sessao.email };
+    } catch {
+      console.error("Sessao do login proprio indisponivel");
+    }
+  }
   const access = accessConfig();
   if (access) {
     const token = requestHeaders.get("cf-access-jwt-assertion");
     if (!token) return null;
     try {
-      return await verifyAccessJwt(token, access);
+      const user = await verifyAccessJwt(token, access);
+      // Grava quem entra pelo Access (identificador e e-mail): ao passar para o login próprio, continua dono dos mesmos dados.
+      if (user) {
+        try {
+          await lembrarUsuario(lojaD1(), user.userId, user.email);
+        } catch {
+          console.error("Usuario do Access nao gravado");
+        }
+      }
+      return user;
     } catch {
       return null;
     }
@@ -67,6 +87,7 @@ export async function requireChatGPTUser(
 ): Promise<ChatGPTUser> {
   const user = await getChatGPTUser();
   if (user) return user;
+  if (loginProprioLigado()) redirect(chatGPTSignInPath(returnTo));
   // Sem Access configurado e sem os cabeçalhos do ChatGPT, não há como entrar: volta para a landing.
   if (!accessConfig() && (env as unknown as { ALLOW_CHATGPT_HEADERS?: string }).ALLOW_CHATGPT_HEADERS !== "1") redirect("/");
   redirect(chatGPTSignInPath(returnTo));
@@ -74,12 +95,14 @@ export async function requireChatGPTUser(
 
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  if (loginProprioLigado()) return `/entrar?return_to=${encodeURIComponent(safeReturnTo)}`;
   // Com Access, a própria página protegida pede o e-mail e manda o código.
   if (accessConfig()) return safeReturnTo;
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
 export function chatGPTSignOutPath(returnTo = "/"): string {
+  if (loginProprioLigado()) return "/sair";
   if (accessConfig()) return "/cdn-cgi/access/logout";
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
@@ -103,6 +126,8 @@ function safeRelativeReturnPath(value: string): string {
 function isReservedAuthPath(pathname: string): boolean {
   return (
     pathname === SIGN_IN_PATH ||
+    pathname === "/entrar" ||
+    pathname === "/sair" ||
     pathname === SIGN_OUT_PATH ||
     pathname === CALLBACK_PATH
   );

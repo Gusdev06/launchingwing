@@ -64,3 +64,21 @@ export const fundoVerdeBuscas=sqliteTable('fundo_verde_buscas',{
  resposta:text('resposta').notNull(),
  criadoEm:integer('criado_em').notNull(),
 });
+// Login próprio por código no e-mail (lib/login-codigo.ts). O banco guarda só resumos (SHA-256) do código e da sessão.
+export const usuarios=sqliteTable('usuarios',{
+ id:text('id').primaryKey(),
+ email:text('email').notNull().unique(),
+ criadoEm:integer('criado_em').notNull(),
+});
+export const loginCodigos=sqliteTable('login_codigos',{
+ email:text('email').primaryKey(),
+ hash:text('hash').notNull(),
+ expira:integer('expira').notNull(),
+ tentativas:integer('tentativas').notNull().default(0),
+});
+export const sessoes=sqliteTable('sessoes',{
+ hash:text('hash').primaryKey(),
+ userId:text('user_id').notNull(),
+ email:text('email').notNull(),
+ expira:integer('expira').notNull(),
+},t=>[index('idx_sessoes_user').on(t.userId)]);
