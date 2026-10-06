@@ -2,7 +2,7 @@ import {env} from 'cloudflare:workers';
 import {z} from 'zod';
 import {contextSchema,type PilotData,type PilotRun,type PilotGeneration,type PilotPiece} from './pilot-model';
 import {findRun,saveRun} from './pilot-store';
-import {generatedPieces,avisoDoLote} from './pilot-lote';
+import {generatedPieces,avisoDoLote,historicoDoDono} from './pilot-lote';
 export {generatedPieces};
 
 export async function engineFetch(path:string,init?:RequestInit){
@@ -30,7 +30,7 @@ export async function syncGeneration(owner:string,run:PilotRun){
   if(run.flow==='blitz'&&current.kind==='analysis'&&run.onboarding?.completedAt){const next=runData(run);next.analysisJobId=current.jobId;queueProduction(next);if(await saveRun(owner,run.id,run.revision,next))return syncGeneration(owner,(await findRun(owner,run.id))!);return (await findRun(owner,run.id))!}return run;
  }
  let jobId=current.jobId;
- if(!jobId){const input=current.kind==='analysis'?{url:run.url,...(run.flow==='blitz'?{prefetch:true}:{}),...(run.descriptionInput?{description:run.descriptionInput}:{})}:{url:run.url,context:run.context,facts:run.facts,sources:run.sources,...(run.flow==='blitz'?{analysisJobId:run.analysisJobId,preferences:{...run.onboarding?.answers,...(run.pieces.length?{previousHooks:run.pieces.slice(-8).map(p=>p.hook)}:{})}}:{})};const body=await(await engineFetch('/jobs',{method:'POST',body:JSON.stringify({key:current.key,kind:current.kind,input})})).json();jobId=z.object({id:z.string().uuid()}).parse(body).id}
+ if(!jobId){const input=current.kind==='analysis'?{url:run.url,...(run.flow==='blitz'?{prefetch:true}:{}),...(run.descriptionInput?{description:run.descriptionInput}:{})}:{url:run.url,context:run.context,facts:run.facts,sources:run.sources,...(run.flow==='blitz'?{analysisJobId:run.analysisJobId,preferences:{...run.onboarding?.answers,...historicoDoDono(run.pieces)}}:{})};const body=await(await engineFetch('/jobs',{method:'POST',body:JSON.stringify({key:current.key,kind:current.kind,input})})).json();jobId=z.object({id:z.string().uuid()}).parse(body).id}
  if(current.retryRequested)await engineFetch(`/jobs/${jobId}/retry`,{method:'POST',body:'{}'});
  const job=jobSchema.parse(await(await engineFetch(`/jobs/${jobId}`)).json());
  if(job.kind!==current.kind)throw new Error('A geração não corresponde a este caso.');

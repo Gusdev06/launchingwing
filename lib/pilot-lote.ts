@@ -12,3 +12,8 @@ export function generatedPieces(runId:string,jobId:string,result:unknown,partial
 }
 // Por que o meme não veio (o portão do motor reprovou ou não conseguiu conferir); vira aviso na tela de revisão.
 export function avisoDoLote(result:unknown):string|undefined{const s=(result as {semMeme?:unknown}|null)?.semMeme;return typeof s==='string'&&s.trim()?s.trim().slice(0,1000):undefined}
+// O que o motor recebe do histórico do dono: os últimos ganchos (para não repetir) e os reprovados com o motivo (para aprender).
+export function historicoDoDono(pieces:Pick<PilotPiece,'hook'|'status'|'feedback'>[]):{previousHooks?:string[];reprovados?:{hook:string;motivo:string}[]}{
+ const reprovados=pieces.filter(p=>p.status==='changes'||p.status==='rejected').slice(-8).map(p=>({hook:p.hook,motivo:p.feedback}));
+ return {...(pieces.length?{previousHooks:pieces.slice(-8).map(p=>p.hook)}:{}),...(reprovados.length?{reprovados}:{})};
+}
