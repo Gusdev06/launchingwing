@@ -12,6 +12,14 @@ assert.equal(avisoDoLote({pieces:[],semMeme}),semMeme);
 assert.equal(avisoDoLote({pieces:[]}),undefined);
 assert.throws(()=>generatedPieces('r','j',{pieces:[carrossel('educativo'),carrossel('amiga')]}),/três formatos/,'sem motivo, 2 peças é lote incompleto');
 assert.throws(()=>generatedPieces('r','j',{pieces:[meme,carrossel('educativo'),carrossel('amiga')],semMeme}),/três formatos/,'com semMeme não pode vir vídeo');
+// F4 (07/10): um carrossel falhou e o resto chega com aviso (semCarrossel), em vez de o lote inteiro falhar.
+const semCarrossel='Um dos carrosséis não ficou pronto (as fotos não chegaram). O resto do lote está aqui; gere de novo para tentar outro.';
+assert.deepEqual(generatedPieces('r','j',{pieces:[meme,carrossel('educativo')],semCarrossel}).map(p=>p.id),['meme','educativo']);
+assert.deepEqual(generatedPieces('r','j',{pieces:[carrossel('amiga')],semMeme,semCarrossel}).map(p=>p.id),['amiga']);
+assert.throws(()=>generatedPieces('r','j',{pieces:[meme,carrossel('educativo'),carrossel('amiga')],semCarrossel}),/três formatos/,'com semCarrossel não podem vir os 2 carrosséis');
+assert.throws(()=>generatedPieces('r','j',{pieces:[meme],semCarrossel}),/três formatos/,'sem o meme avisado, só 1 carrossel faltando');
+assert.equal(avisoDoLote({pieces:[],semMeme,semCarrossel}),`${semMeme} ${semCarrossel}`);
+assert.equal(avisoDoLote({pieces:[],semCarrossel}),semCarrossel);
 // O motor aprende com o que o dono reprovou: gancho e motivo das peças marcadas para mudar ou recusadas, no máximo 8.
 const peca=(hook,status,feedback='')=>({hook,status,feedback});
 const h=historicoDoDono([peca('a','approved'),peca('b','rejected','sem graça'),peca('c','changes','tom errado'),peca('d','pending')]);
