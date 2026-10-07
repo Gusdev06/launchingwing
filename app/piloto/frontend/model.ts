@@ -1,11 +1,12 @@
 import type {PilotRun} from '@/lib/pilot-model';
+import {rotuloDaPostagem} from '@/lib/postagem';
 
 export type View = 'inicio'|'descobrir'|'criar'|'virais'|'galeria'|'calendario'|'automacoes'|'marca'|'contas'|'resultados'|'uso'|'configuracoes'|'ajuda'|'editor';
 export type Format = 'meme'|'educativo'|'amiga';
 export const formatNames:Record<Format,string>={meme:'Meme',educativo:'Educativo',amiga:'Conversa de amiga'};
 export const photos=['01-celular-cafe-cama.jpg','02-quarto-celular.jpg','03-cafe-rotina.jpg','04-celular-lencois.jpg','05-maos-celular-laranja.jpg'].map(x=>`/workspace/${x}`);
 export type Slide={id:string;image:string;text:string;position:'top'|'center'|'bottom';size:number};
-export type Content={id:string;title:string;format:Format;caption:string;slides:Slide[];video?:string;poster?:string;origin:'example'|'pilot'|'local';status:'draft'|'saved'|'discarded';createdAt:string;sourceId?:string;reference?:string};
+export type Content={id:string;title:string;format:Format;caption:string;slides:Slide[];video?:string;poster?:string;origin:'example'|'pilot'|'local';status:'draft'|'saved'|'discarded';createdAt:string;sourceId?:string;reference?:string;postagem?:string};
 export type Media={id:string;name:string;src:string;kind:'image'|'video';collection:string;origin:string};
 export type Plan={id:string;contentId:string;platform:'TikTok'|'Instagram';date:string;time:string;timezone:string;note:string};
 export type Campaign={id:string;name:string;objective:string;formats:Format[];days:number[];perDay:number;weeks:number;start:string;platform:'TikTok'|'Instagram';source:'mix'|'own'|'pinterest';status:'draft'|'paused'};
@@ -14,7 +15,7 @@ export type WorkspaceData={version:1;brand:Brand;brandEdited?:boolean;contents:C
 export function uid(){return crypto.randomUUID()}
 export function dateKey(date:Date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
 export function freshSlides(format:Format):Slide[]{return Array.from({length:format==='meme'?1:5},(_,i)=>({id:uid(),image:photos[i%photos.length],text:'',position:i===0?'top':'center',size:30}))}
-export function fromPilot(run:PilotRun):Content[]{return run.pieces.map(p=>({id:`pilot:${p.id}`,sourceId:p.id,title:p.hook,format:p.format.toLowerCase().includes('meme')?'meme':/amiga|story/i.test(p.format)?'amiga':'educativo',caption:p.caption,slides:p.assets.filter(a=>a.kind==='image').map((a,i)=>({id:`${p.id}:${i}`,image:a.url,text:'',position:'center',size:30})),video:p.assets.find(a=>a.kind==='video')?.url,poster:p.assets.find(a=>a.kind==='video')?.poster,origin:'pilot',status:p.status==='approved'?'saved':p.status==='rejected'?'discarded':'draft',createdAt:run.createdAt}))}
+export function fromPilot(run:PilotRun):Content[]{return run.pieces.map(p=>({id:`pilot:${p.id}`,sourceId:p.id,title:p.hook,format:p.format.toLowerCase().includes('meme')?'meme':/amiga|story/i.test(p.format)?'amiga':'educativo',caption:p.caption,slides:p.assets.filter(a=>a.kind==='image').map((a,i)=>({id:`${p.id}:${i}`,image:a.url,text:'',position:'center',size:30})),video:p.assets.find(a=>a.kind==='video')?.url,poster:p.assets.find(a=>a.kind==='video')?.poster,origin:'pilot',status:p.status==='approved'?'saved':p.status==='rejected'?'discarded':'draft',postagem:rotuloDaPostagem(p),createdAt:run.createdAt}))}
 export function initialData(run?:PilotRun|null):WorkspaceData{
  const demoTitles=['Antes de olhar um perfil, eu faria isso','Amiga, um print sozinho não conta tudo','Quando você tenta lembrar o que mudou','3 coisas para observar com mais contexto','Você não precisa conferir tudo de novo','Uma forma mais leve de acompanhar'];
  const contents:Content[]=run?[]:demoTitles.map((title,i)=>({id:`example-${i}`,title,format:i===2?'meme':i%2?'amiga':'educativo',caption:'Uma referência preparada para explorar a experiência da Launchwing. Revise e adapte antes de usar.',slides:[{id:`sample-${i}`,image:photos[i%photos.length],text:title,position:i%2?'center':'top',size:30},...photos.slice(1,4).map((p,j)=>({id:`sample-${i}-${j}`,image:p,text:['Comece pelo que você quer entender.','Olhe a sequência, não só um momento.','Guarde o contexto para comparar depois.'][j],position:'center' as const,size:28}))],...(i===2?{video:'/pilot/insta-radar/v2-casual/insta-radar-meme.mp4',poster:'/pilot/insta-radar/v2-casual/capa.jpg'}:{}),origin:'example',status:i<3?'draft':'saved',createdAt:'2026-09-12T00:00:00Z'}));
