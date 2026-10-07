@@ -9,7 +9,7 @@ import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {assertPostagem} from './esqueleto-regras.mjs';
 
-const porta=8797,base=`http://127.0.0.1:${porta}`,portaMotor=8796,token='t'.repeat(40),email=`esqueleto-${randomUUID().slice(0,8)}@exemplo.com`;
+const prazoSegundos=4,porta=8797,base=`http://127.0.0.1:${porta}`,portaMotor=8796,token='t'.repeat(40),email=`esqueleto-${randomUUID().slice(0,8)}@exemplo.com`;
 // ---- motor de mentira ----
 const jobs=new Map(),pedidos=[];let analiseLiberada=false,arquivosNoMotor=true;
 const carrossel=id=>({id,format:`Slideshow ${id} · 6 slides`,hook:`gancho ${id}`,caption:'legenda',rationale:'a\nb',provenance:'p',copy:'PAS',assets:Array.from({length:6},(_,i)=>({file:`${id}-slide-0${i+1}.jpg`,kind:'image',alt:'slide'}))});
@@ -31,7 +31,7 @@ await new Promise(ok=>motor.listen(portaMotor,'127.0.0.1',ok));
 // ---- site ----
 let saida='';
 const servidor=spawn(process.execPath,['--import','./scripts/sites-env.mjs','./node_modules/wrangler/bin/wrangler.js','dev','--config','dist/server/wrangler.json','--local','--persist-to','.wrangler/state','--ip','127.0.0.1','--port',String(porta),'--inspector-port','0',
- '--var',`LOGIN_PROPRIO:1`,'--var','LOGIN_EMAIL_TESTE:1','--var',`LAUNCHWING_ENGINE_URL:http://127.0.0.1:${portaMotor}`,'--var',`LAUNCHWING_ENGINE_TOKEN:${token}`],{stdio:['ignore','pipe','pipe']});
+ '--var',`LOGIN_PROPRIO:1`,'--var','LOGIN_EMAIL_TESTE:1','--var',`LAUNCHWING_ENGINE_URL:http://127.0.0.1:${portaMotor}`,'--var',`LAUNCHWING_ENGINE_TOKEN:${token}`,'--var',`PRAZO_DESFAZER_SEGUNDOS:${prazoSegundos}`],{stdio:['ignore','pipe','pipe']});
 servidor.stdout.on('data',d=>{saida+=d});servidor.stderr.on('data',d=>{saida+=d});
 const esperar=async(teste,ms)=>{const fim=Date.now()+ms;while(Date.now()<fim){if(await teste())return true;await new Promise(r=>setTimeout(r,250))}return false};
 const marcas=[];
@@ -65,9 +65,17 @@ try{
  // aprovar e a rotina postar
  const aprovado=await pedir(`/api/pilot/${run.id}`,{method:'PATCH',cookie,corpo:{action:'swipe',revision:run.revision,pieceId:pecas[1].id,direction:'right',seconds:3}});
  assert.equal(aprovado.status,200,aprovado.corpo);
+ // dentro do prazo para desfazer a rotina não posta (frente 3, 07/10)
+ await rotina();
+ run=(await pedir(`/api/pilot/${run.id}`,{cookie})).dados.run;
+ assert.equal(run.pieces.find(p=>p.id===pecas[1].id).postagem,undefined,'a rotina postou antes do prazo para desfazer');marcas.push('espera_o_prazo_para_desfazer');
+ await new Promise(ok=>setTimeout(ok,(prazoSegundos+1)*1000));
  await rotina();
  run=(await pedir(`/api/pilot/${run.id}`,{cookie})).dados.run;
  assertPostagem(run.pieces,pecas[1].id);marcas.push('aprovada_e_postada_simulacao');
+ // já postada: não volta para revisão
+ const desfazer=await pedir(`/api/pilot/${run.id}`,{method:'PATCH',cookie,corpo:{action:'review',revision:run.revision,pieceId:pecas[1].id,status:'pending',caption:'legenda',feedback:'',seconds:0}});
+ assert.equal(desfazer.status,400);assert.match(desfazer.dados.error,/já foi postada/);marcas.push('postada_nao_desfaz');
  // limite por conta: 3 casos com o motor em 24 horas
  for(let i=0;i<2;i++)assert.equal((await pedir('/api/pilot',{method:'POST',cookie,corpo:{mode:'api',flow:'blitz',url:`https://exemplo${i}.com/`,answers:respostas}})).status,201);
  const quarto=await pedir('/api/pilot',{method:'POST',cookie,corpo:{mode:'api',flow:'blitz',url:'https://exemplo9.com/',answers:respostas}});

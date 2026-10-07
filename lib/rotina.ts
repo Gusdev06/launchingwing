@@ -6,9 +6,11 @@ import {env} from 'cloudflare:workers';
 import {runData as dados,syncGeneration} from './pilot-engine';
 import {findRun,saveRun} from './pilot-store';
 import {guardarMidia,arquivosDoLote,loteDaUrl} from './midia';
-import {postarAprovadas} from './postagem';
+import {postarAprovadas,PRAZO_DESFAZER_MS} from './postagem';
 
 const db=()=>(env as unknown as {DB:D1Database}).DB;
+// PRAZO_DESFAZER_SEGUNDOS só para a prova do esqueleto (prazo curto); no ar vale o padrão de lib/postagem.ts.
+const prazoDesfazer=()=>{const s=Number((env as unknown as {PRAZO_DESFAZER_SEGUNDOS?:string}).PRAZO_DESFAZER_SEGUNDOS);return s>0?s*1000:PRAZO_DESFAZER_MS};
 
 export async function rotina(){
  const desde=new Date(Date.now()-3*86400000).toISOString();
@@ -24,7 +26,7 @@ export async function rotina(){
     for(const job of new Set(run.pieces.flatMap(p=>p.assets.flatMap(a=>loteDaUrl(a.url)?.jobId??[]))))await guardarMidia(job,arquivosDoLote(run.pieces,job));
     if(await saveRun(dono,id,run.revision,{...dados(run),midiaGuardada:pronto.jobId}))run=(await findRun(dono,id))!;
    }
-   const postado=postarAprovadas(dados(run),new Date().toISOString());
+   const postado=postarAprovadas(dados(run),new Date().toISOString(),prazoDesfazer());
    if(postado)await saveRun(dono,id,run.revision,postado);
   }catch(erro){console.error('[rotina] caso',id,erro instanceof Error?erro.message:erro)}
  }

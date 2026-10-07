@@ -54,6 +54,8 @@ export function normalizeProductUrl(input:unknown):string{
  return url.toString();
 }
 
+// Com a postagem real o post já estaria na rede: peça postada não volta para revisão.
+const JA_POSTADA='Esta peça já foi postada. Não dá para desfazer nem mudar a revisão.';
 export function applyPilotAction(data:PilotData,action:PilotAction,prepared:PilotPiece[],now=new Date().toISOString()):PilotData{
  const next=structuredClone(data);
  if(action.action==='onboarding'){
@@ -64,6 +66,7 @@ export function applyPilotAction(data:PilotData,action:PilotAction,prepared:Pilo
  }else if(action.action==='swipe'){
   const piece=next.pieces.find(p=>p.id===action.pieceId);
   if(!piece)throw new Error('Esta peça ainda não está pronta.');
+  if(piece.postagem)throw new Error(JA_POSTADA);
   piece.status=action.direction==='right'?'approved':'rejected';piece.reviewSeconds+=action.seconds;
   next.events.push({at:now,kind:'piece_swiped',pieceId:piece.id,status:piece.status});
  }else if(action.action==='more'){
@@ -81,6 +84,7 @@ export function applyPilotAction(data:PilotData,action:PilotAction,prepared:Pilo
   if(data.phase!=='review'&&!(data.flow==='blitz'&&data.pieces.length))throw new Error('O lote ainda não está disponível para revisão.');
   const piece=next.pieces.find(p=>p.id===action.pieceId);
   if(!piece)throw new Error('Peça não encontrada neste lote.');
+  if(piece.postagem)throw new Error(JA_POSTADA);
   if((action.status==='changes'||action.status==='rejected')&&!action.feedback)throw new Error('Conte o que precisa mudar ou por que não usaria esta peça.');
   piece.caption=action.caption;piece.status=action.status;piece.feedback=action.feedback;piece.reviewSeconds+=action.seconds;
   next.events.push({at:now,kind:'piece_reviewed',pieceId:piece.id,status:piece.status});
