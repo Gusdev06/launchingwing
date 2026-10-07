@@ -2,6 +2,9 @@ import type {PilotRun} from '@/lib/pilot-model';
 import {rotuloDaPostagem} from '@/lib/postagem';
 
 export type View = 'inicio'|'descobrir'|'criar'|'virais'|'galeria'|'calendario'|'automacoes'|'marca'|'contas'|'resultados'|'uso'|'configuracoes'|'ajuda'|'editor';
+// Telas que ainda não funcionam (reunião Nicolas x Gustavo, 07/10: foco em copy e vídeo). Ficam no menu como "Em breve" e
+// nenhum botão leva até elas. Liberar uma tela = tirar o nome daqui.
+export const EM_BREVE=new Set<View>(['virais','calendario','automacoes','contas','resultados']);
 export type Format = 'meme'|'educativo'|'amiga';
 export const formatNames:Record<Format,string>={meme:'Meme',educativo:'Educativo',amiga:'Conversa de amiga'};
 export const photos=['01-celular-cafe-cama.jpg','02-quarto-celular.jpg','03-cafe-rotina.jpg','04-celular-lencois.jpg','05-maos-celular-laranja.jpg'].map(x=>`/workspace/${x}`);

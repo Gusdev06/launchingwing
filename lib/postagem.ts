@@ -18,6 +18,7 @@ export function postarAprovadas(data:PilotData,agora:string,prazoMs=PRAZO_DESFAZ
 
 // O que o cartão da Galeria mostra sobre a postagem (F1 na tela, 07/10). Hora de Brasília.
 export function rotuloDaPostagem(p:{status:string;postagem?:{em:string;simulacao:boolean}}):string|undefined{
- if(p.postagem){const quando=new Date(p.postagem.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});return `Postada${p.postagem.simulacao?' (simulação)':''} em ${quando}`}
- return p.status==='approved'?'Na fila para postar':undefined;
+ if(p.postagem){const quando=new Date(p.postagem.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});return p.postagem.simulacao?'Pronta para postar':`Postada em ${quando}`}
+ // Sem as redes ligadas nada é postado de verdade (reunião de 07/10): o cartão nunca diz "Postada" nem "na fila".
+ return p.status==='approved'?(POSTAGEM_SIMULADA?'Pronta para postar':'Na fila para postar'):undefined;
 }
