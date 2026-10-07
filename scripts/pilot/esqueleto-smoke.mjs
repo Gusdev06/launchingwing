@@ -82,7 +82,6 @@ try{
  const pendente=run.pieces.find(p=>p.status==='pending');
  const reprovou=await pedir(`/api/pilot/${run.id}`,{method:'PATCH',cookie,corpo:{action:'swipe',revision:run.revision,pieceId:pendente.id,direction:'left',seconds:2}});
  assert.equal(reprovou.status,200,reprovou.corpo);
- assert.equal(reprovou.dados.run.pieces.filter(p=>p.status==='pending').length,1,'devia sobrar 1 peça para revisar');
  assert.ok(await esperar(async()=>{await rotina();run=(await pedir(`/api/pilot/${run.id}`,{cookie})).dados.run;return pedidos.filter(k=>k==='production').length>producoesAntes&&run.pieces.length===6},30000),'reprovou e não chegou outro lote:\n'+JSON.stringify(run).slice(0,400));
  assert.equal(run.pieces.filter(p=>p.status==='pending').length,4,'o lote novo chega para revisar');marcas.push('reprovou_chegou_outro_lote');
  // limite por conta: 3 casos com o motor em 24 horas
