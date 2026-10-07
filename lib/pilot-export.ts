@@ -57,7 +57,7 @@ export async function createPilotExport(run:PilotRun,pieceId?:string,readAsset:A
   entries.push({name:`${folder}/sobre-a-peca.txt`,data:encoder.encode(`${piece.hook}\nFormato: ${piece.format}\n\n${piece.rationale}\n\nOrigem: ${piece.provenance}\n`)});
   manifest.push({id:piece.id,format:piece.format,hook:piece.hook,status:piece.status,caption:piece.caption,assets,provenance:piece.provenance});
  }
- entries.push({name:'LEIA-ME.txt',data:encoder.encode(`LAUNCHWING — ${run.context.name}\nProduto: ${run.url}\n\n${pieceId?'Peça individual; confira sua decisão de revisão.':'Este pacote contém apenas as peças aprovadas nesta revisão.'}\nAs legendas são as versões salvas no caso. Os slides estão numerados na ordem de postagem.\n\nA origem das mídias está em sobre-a-peca.txt. Baixar ou aprovar não publica o conteúdo.\n`)});
+ entries.push({name:'LEIA-ME.txt',data:encoder.encode(`LAUNCHWING: ${run.context.name}\nProduto: ${run.url}\n\n${pieceId?'Peça individual; confira sua decisão de revisão.':'Este pacote contém apenas as peças aprovadas nesta revisão.'}\nAs legendas são as versões salvas no caso. Os slides estão numerados na ordem de postagem.\n\nA origem das mídias está em sobre-a-peca.txt. Baixar ou aprovar não publica o conteúdo.\n`)});
  entries.push({name:'revisao.json',data:encoder.encode(JSON.stringify({runId:run.id,revision:run.revision,exportedAt:new Date().toISOString(),pieces:manifest},null,2))});
  return {blob:zip(entries),fileName:`launchwing-${safeName(run.context.name)}-${run.id}-${pieceId?safeName(pieceId):'aprovadas'}.zip`};
 }

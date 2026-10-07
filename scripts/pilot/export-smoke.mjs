@@ -5,7 +5,7 @@ import {createPilotExport} from '../../lib/pilot-export.ts';
 
 const radar=JSON.parse(await readFile('lib/pilot-insta-radar.json','utf8'));
 const geraew=JSON.parse(await readFile('lib/pilot-geraew.json','utf8'));
-const editedCaption='Legenda salva na revisão — ação, comparação e coração.\nSegunda linha.';
+const editedCaption='Legenda salva na revisão: ação, comparação e coração.\nSegunda linha.';
 const run={...radar,id:'qa-export',revision:7,url:'https://insta-radar-two.vercel.app/',pieces:radar.pieces.map((piece,index)=>({...piece,status:index<2?'approved':'pending',caption:index===1?editedCaption:piece.caption}))};
 const reader=async url=>new Response(await readFile(`public${url}`),{headers:{'Content-Type':url.endsWith('.mp4')?'video/mp4':'image/png'}});
 await mkdir('outputs/export-qa',{recursive:true});

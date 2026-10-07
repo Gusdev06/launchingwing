@@ -15,7 +15,7 @@ try{
  for(const url of ['http://localhost','https://127.0.0.1/','https://user:password@example.com/','javascript:alert(1)'])assert.equal((await call('/api/pilot',{method:'POST',body:{url}})).status,400);marks.push('invalid_and_private_urls_rejected');
  const first=await call('/api/pilot',{method:'POST',body:{mode:'demo',url:'https://geraew.ai/'}});assert.equal(first.status,201);let run=first.data.run;ids.push(run.id);assert.equal(run.phase,'context');assert.equal(run.pieces.length,0);
  assert.equal((await call(`/api/pilot/${run.id}`,{method:'PATCH',body:{action:'prepare',revision:run.revision}})).status,400);marks.push('context_required_before_batch');
- const context=await call(`/api/pilot/${run.id}`,{method:'PATCH',body:{action:'context',revision:run.revision,context:{...run.context,name:'QA descartável — GERAEW'}}});assert.equal(context.status,200);run=context.data.run;
+ const context=await call(`/api/pilot/${run.id}`,{method:'PATCH',body:{action:'context',revision:run.revision,context:{...run.context,name:'QA descartável · GERAEW'}}});assert.equal(context.status,200);run=context.data.run;
  const batch=await call(`/api/pilot/${run.id}`,{method:'PATCH',body:{action:'prepare',revision:run.revision}});assert.equal(batch.status,200);run=batch.data.run;assert.equal(run.pieces.length,3);marks.push('context_and_three_piece_batch_persisted');
  const revision=run.revision;
  const badFeedback=await call(`/api/pilot/${run.id}`,{method:'PATCH',body:{action:'review',revision,pieceId:run.pieces[0].id,caption:run.pieces[0].caption,feedback:'',status:'changes',seconds:10}});assert.equal(badFeedback.status,400);marks.push('rejection_reason_required');
