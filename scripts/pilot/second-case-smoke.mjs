@@ -8,7 +8,7 @@ await mkdir('outputs',{recursive:true});
 try{
  const result=await call('/api/pilot','POST',{mode:'demo',url:'https://insta-radar-two.vercel.app/'});assert.equal(result.status,201);let run=result.data.run;ids.push(run.id);
  assert.equal(run.context.name,'Insta Radar');assert.equal(run.phase,'context');assert.match(run.caseId,/insta-radar/);assert.ok(!JSON.stringify(run.context).includes('GERAEW'));checks.push('radar_url_resolves_own_context');
- const confirmation=await call(`/api/pilot/${run.id}`,'PATCH',{action:'context',revision:run.revision,context:{...run.context,name:'QA descartável — Insta Radar'}});assert.equal(confirmation.status,200);run=confirmation.data.run;
+ const confirmation=await call(`/api/pilot/${run.id}`,'PATCH',{action:'context',revision:run.revision,context:{...run.context,name:'QA descartável · Insta Radar'}});assert.equal(confirmation.status,200);run=confirmation.data.run;
  const prepared=await call(`/api/pilot/${run.id}`,'PATCH',{action:'prepare',revision:run.revision});assert.equal(prepared.status,200);run=prepared.data.run;assert.equal(run.pieces.length,3);assert.ok(run.pieces.every(p=>p.id.startsWith('insta-radar-')&&p.status==='pending'));checks.push('three_radar_pieces_no_cross_product_mix');
  assert.deepEqual(run.pieces.map(piece=>piece.assets.length),[1,6,6]);
  assert.deepEqual(run.pieces.map(piece=>piece.assets[0].kind),['video','image','image']);

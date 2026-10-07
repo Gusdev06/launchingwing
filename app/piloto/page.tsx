@@ -7,7 +7,7 @@ import './pilot.css';
 import './blitz.css';
 
 export const dynamic='force-dynamic';
-export const metadata:Metadata={title:'Launchwing — teste privado',robots:{index:false,follow:false}};
+export const metadata:Metadata={title:'Launchwing · teste privado',robots:{index:false,follow:false}};
 
 async function PilotGate({returnTo,url,legacy}:{returnTo:string;url:string;legacy:boolean}){
  const user=await requireChatGPTUser(returnTo);
