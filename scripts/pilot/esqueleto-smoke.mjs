@@ -76,6 +76,15 @@ try{
  // já postada: não volta para revisão
  const desfazer=await pedir(`/api/pilot/${run.id}`,{method:'PATCH',cookie,corpo:{action:'review',revision:run.revision,pieceId:pecas[1].id,status:'pending',caption:'legenda',feedback:'',seconds:0}});
  assert.equal(desfazer.status,400);assert.match(desfazer.dados.error,/já foi postada/);marcas.push('postada_nao_desfaz');
+ // F2 (07/10): reprovou até sobrar 1 peça para revisar, o site pede outro lote ao motor sozinho e as peças novas chegam
+ run=(await pedir(`/api/pilot/${run.id}`,{cookie})).dados.run;
+ const producoesAntes=pedidos.filter(k=>k==='production').length;
+ const pendente=run.pieces.find(p=>p.status==='pending');
+ const reprovou=await pedir(`/api/pilot/${run.id}`,{method:'PATCH',cookie,corpo:{action:'swipe',revision:run.revision,pieceId:pendente.id,direction:'left',seconds:2}});
+ assert.equal(reprovou.status,200,reprovou.corpo);
+ assert.equal(reprovou.dados.run.pieces.filter(p=>p.status==='pending').length,1,'devia sobrar 1 peça para revisar');
+ assert.ok(await esperar(async()=>{await rotina();run=(await pedir(`/api/pilot/${run.id}`,{cookie})).dados.run;return pedidos.filter(k=>k==='production').length>producoesAntes&&run.pieces.length===6},30000),'reprovou e não chegou outro lote:\n'+JSON.stringify(run).slice(0,400));
+ assert.equal(run.pieces.filter(p=>p.status==='pending').length,4,'o lote novo chega para revisar');marcas.push('reprovou_chegou_outro_lote');
  // limite por conta: 3 casos com o motor em 24 horas
  for(let i=0;i<2;i++)assert.equal((await pedir('/api/pilot',{method:'POST',cookie,corpo:{mode:'api',flow:'blitz',url:`https://exemplo${i}.com/`,answers:respostas}})).status,201);
  const quarto=await pedir('/api/pilot',{method:'POST',cookie,corpo:{mode:'api',flow:'blitz',url:'https://exemplo9.com/',answers:respostas}});
