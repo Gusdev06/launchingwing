@@ -20,3 +20,4 @@
 
 .fw-art-preview{margin:12px 0;border-radius:10px;overflow:hidden;background:#f2f3f7}.fw-art-preview img,.fw-art-preview video{display:block;width:100%;max-height:360px;object-fit:contain}
 .fw-dialog-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.fw-sidebar nav .fw-nav-soon,.fw-nav-dialog nav .fw-nav-soon{min-height:43px;display:flex;gap:12px;align-items:center;font-size:14px;color:#a3a7b3;padding:10px 13px;border-radius:8px;font-weight:550;cursor:default}.fw-nav-soon small{margin-left:auto;font-size:11px;font-weight:650;color:#717583;background:#f4f5f9;border-radius:999px;padding:2px 8px;white-space:nowrap}
