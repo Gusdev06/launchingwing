@@ -5,34 +5,30 @@ on:
   pull_request:
 jobs:
   provas:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Runner no Mac do dono (os minutos do GitHub acabaram em 28/09). Cada passo pesado entra na fila do Mac
+    # (~/fila-do-mac/fila.py), um trabalho por vez; a espera conta nos 60 minutos.
+    runs-on: [self-hosted, macOS, launchwing]
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci --no-audit --no-fund
-      - run: npx tsc --noEmit
-      - run: npm run build
-      - name: lint (8 avisos antigos do React Compiler nao bloqueiam)
-        run: npm run lint || true
-      - name: provas sem servidor
-        run: |
-          node scripts/painel/access-smoke.mjs
-          node scripts/painel/export-smoke.mjs
-          node scripts/pilot/export-smoke.mjs
-          node scripts/saude/regras.mjs
+      - name: tipos, build, lint e provas sem servidor
+        run: python3 ~/fila-do-mac/fila.py local ci-launchwing launchwing --teto 30m -- npm run check
       - name: banco local com as migracoes
         run: node scripts/migracoes.mjs local
-      - name: provas contra o servidor local
+      - name: provas que sobem o servidor sozinhas (login e esqueleto, com duas contas)
+        run: python3 ~/fila-do-mac/fila.py local ci-launchwing-e2e launchwing --teto 30m -- npm run test:e2e
+      - name: provas contra o servidor de dev
         run: |
           printf 'ALLOW_CHATGPT_HEADERS=1\nOPENAI_API_KEY=chave-falsa-local\nOPENAI_BASE_URL=http://127.0.0.1:8790\n' > .dev.vars
           mkdir -p outputs
-          npm run dev > dev.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:5173/ && break; sleep 2; done
-          node scripts/pilot/smoke.mjs
-          node scripts/painel/smoke.mjs
-          node scripts/painel/arte-smoke.mjs
+          python3 ~/fila-do-mac/fila.py local ci-launchwing-dev launchwing --teto 30m -- bash -c '
+            npm run dev > dev.log 2>&1 & pid=$!
+            trap "kill $pid 2>/dev/null; lsof -ti :5173 | xargs kill 2>/dev/null; true" EXIT
+            for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:5173/ && break; sleep 2; done
+            node scripts/pilot/smoke.mjs && node scripts/painel/smoke.mjs && node scripts/painel/arte-smoke.mjs'
       - name: log do servidor se algo falhou
         if: failure()
         run: tail -80 dev.log || true

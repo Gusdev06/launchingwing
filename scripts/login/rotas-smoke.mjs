@@ -1,10 +1,17 @@
-// Prova de ponta a ponta do login próprio contra o servidor local (precisa de npm run build e npm run db:migrate:local).
+// Prova de ponta a ponta do login próprio contra o servidor local (precisa de npm run build; o banco D1 é só desta prova).
 // Liga o servidor com LOGIN_PROPRIO=1 e o carteiro de teste (o código aparece no registro do servidor, só no localhost).
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 const porta=8799,base=`http://127.0.0.1:${porta}`,email='teste-login@exemplo.com';
+// Banco D1 numa pasta só desta prova: o limite de pedidos por hora de outras rodadas (ou do npm run dev) não interfere.
+const estado=mkdtempSync(join(tmpdir(),'launchwing-login-'));
+const migrou=spawnSync(process.execPath,['scripts/migracoes.mjs','local'],{env:{...process.env,PERSIST_TO:estado},encoding:'utf8'});
+assert.equal(migrou.status,0,'as migrações não entraram no banco da prova:\n'+(migrou.stdout+migrou.stderr).slice(-2000));
 let saida='';
-const servidor=spawn(process.execPath,['--import','./scripts/sites-env.mjs','./node_modules/wrangler/bin/wrangler.js','dev','--config','dist/server/wrangler.json','--local','--persist-to','.wrangler/state','--ip','127.0.0.1','--port',String(porta),'--inspector-port','0','--var','LOGIN_PROPRIO:1','--var','LOGIN_EMAIL_TESTE:1'],{stdio:['ignore','pipe','pipe']});
+const servidor=spawn(process.execPath,['--import','./scripts/sites-env.mjs','./node_modules/wrangler/bin/wrangler.js','dev','--config','dist/server/wrangler.json','--local','--persist-to',estado,'--ip','127.0.0.1','--port',String(porta),'--inspector-port','0','--var','LOGIN_PROPRIO:1','--var','LOGIN_EMAIL_TESTE:1'],{stdio:['ignore','pipe','pipe']});
 servidor.stdout.on('data',d=>{saida+=d});servidor.stderr.on('data',d=>{saida+=d});
 const esperar=async(teste,ms)=>{const fim=Date.now()+ms;while(Date.now()<fim){if(teste())return true;await new Promise(r=>setTimeout(r,250))}return false};
 const marcas=[];
@@ -31,4 +38,4 @@ try{
  let ultimo=0;for(let i=0;i<6;i++)ultimo=(await pedir('/api/entrar/codigo',{method:'POST',corpo:{email}})).status;
  assert.equal(ultimo,429);marcas.push('limite_de_pedidos_429');
  console.log('rotas-smoke ok:',marcas.join(', '));
-}finally{servidor.kill('SIGTERM')}
+}finally{servidor.kill('SIGTERM');rmSync(estado,{recursive:true,force:true})}
