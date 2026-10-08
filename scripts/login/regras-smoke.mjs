@@ -2,10 +2,12 @@
 import assert from 'node:assert/strict';
 import {pedirCodigo,verificarCodigo,usuarioDaSessao,sair,lembrarUsuario,enviarPorResend,CODIGO_MS,SESSAO_MS,TENTATIVAS} from '../../lib/login-codigo.ts';
 function lojaEmMemoria(){
- const codigos=new Map(),usuarios=new Map(),sessoes=new Map();
- return {codigos,sessoes,
-  pegarCodigo:async e=>codigos.get(e)??null,salvarCodigo:async(e,hash,expira)=>{codigos.set(e,{hash,expira,tentativas:0})},
+ const codigos=new Map(),usuarios=new Map(),sessoes=new Map(),contagem={comparacoes:0};
+ // pegarCodigo devolve uma cópia cujo hash conta quantas vezes foi lido: cada leitura é uma comparação feita por verificarCodigo.
+ return {codigos,sessoes,contagem,
+  pegarCodigo:async e=>{const c=codigos.get(e);return c?{expira:c.expira,tentativas:c.tentativas,get hash(){contagem.comparacoes++;return c.hash}}:null},salvarCodigo:async(e,hash,expira)=>{codigos.set(e,{hash,expira,tentativas:0})},
   somarTentativa:async e=>{const c=codigos.get(e);if(c)c.tentativas++;return c?.tentativas??0},apagarCodigo:async e=>{codigos.delete(e)},
+  consumirCodigo:async(e,hash)=>{const c=codigos.get(e);if(!c||c.hash!==hash)return false;codigos.delete(e);return true},
   acharUsuario:async e=>usuarios.get(e)??null,criarUsuario:async(id,e)=>{if(!usuarios.has(e))usuarios.set(e,{id,email:e});return usuarios.get(e)},
   salvarSessao:async(hash,u,expira)=>{sessoes.set(hash,{...u,expira})},acharSessao:async hash=>sessoes.get(hash)??null,apagarSessao:async hash=>{sessoes.delete(hash)}};
 }
@@ -46,4 +48,16 @@ assert.equal((await usuarioDaSessao(loja,rb.token,relogio))?.userId,'id-do-acces
 let pedido;const ok=await enviarPorResend(async(u,i)=>{pedido={u,i};return new Response('{}',{status:200})},{chave:'re_teste',de:'Launchwing <entrar@exemplo.com>'})('ana@exemplo.com','123456');
 assert.equal(ok,undefined);assert.equal(pedido.u,'https://api.resend.com/emails');assert.equal(pedido.i.headers.Authorization,'Bearer re_teste');assert.match(pedido.i.body,/123456/);
 await assert.rejects(enviarPorResend(async()=>new Response('{}',{status:422}),{chave:'x',de:'y'})('ana@exemplo.com','654321'),e=>!String(e.message).includes('654321'));marcas.push('resend');
+// Clique duplo: dois pedidos ao mesmo tempo com o código certo abrem UMA sessão só. Em sequência não prova nada: o segundo já falhava.
+await pedirCodigo(loja,'caio@exemplo.com',enviar,relogio);const codigoCaio=caixa.at(-1).codigo;
+const dupla=await Promise.all([verificarCodigo(loja,'caio@exemplo.com',codigoCaio,relogio),verificarCodigo(loja,'caio@exemplo.com',codigoCaio,relogio)]);
+assert.deepEqual(dupla.map(r=>r.ok).sort(),[false,true],'dois pedidos simultâneos com o código certo: um entra, o outro falha');marcas.push('codigo_certo_em_paralelo_entra_uma_vez');
+// Rajada: 7 chutes errados ao mesmo tempo comparam no máximo TENTATIVAS vezes; os demais morrem antes de olhar o hash.
+await pedirCodigo(loja,'caio@exemplo.com',enviar,relogio);const erradoCaio=caixa.at(-1).codigo==='000000'?'111111':'000000';loja.contagem.comparacoes=0;
+const rajada=await Promise.all(Array.from({length:TENTATIVAS+2},()=>verificarCodigo(loja,'caio@exemplo.com',erradoCaio,relogio)));
+assert.ok(rajada.every(r=>!r.ok));assert.ok(loja.contagem.comparacoes<=TENTATIVAS,`${loja.contagem.comparacoes} comparações em paralelo, o teto é ${TENTATIVAS}`);marcas.push('rajada_paralela_compara_no_maximo_5');
+// Resend pendurado: a chamada desiste em menos de 11 s. O fetch falso só termina se for abortado pelo signal, como o fetch de verdade.
+const inicio=Date.now();let vigia;const pendurado=enviarPorResend((u,i)=>new Promise((_,rej)=>{i.signal?.addEventListener('abort',()=>rej(i.signal.reason))}),{chave:'x',de:'y'})('ana@exemplo.com','111111');
+await assert.rejects(Promise.race([pendurado,new Promise((_,rej)=>{vigia=setTimeout(()=>rej(new Error('sem_timeout')),11000)})]),e=>e.name==='TimeoutError');clearTimeout(vigia);
+assert.ok(Date.now()-inicio<11000);marcas.push('resend_desiste_em_10s');
 console.log('regras-smoke ok:',marcas.join(', '));
