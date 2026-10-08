@@ -42,7 +42,7 @@ Estado local em 11/09: Studio como principal, hero com vídeos e imagem FeelRun,
 
 ## Conteúdo e dados
 
-`app/page.tsx` e `app/layouts/studio/page.tsx`: entradas da Studio. `app/layouts/studio/landing.tsx` e `studio.css`: nova copy e mockups de prova. `app/layouts/concept.tsx`: mídia, exemplos e cadastro compartilhados. `app/globals.css` e `app/layouts/layouts.css`: base visual e responsividade. `public/brand/`: kit Lift e fonte com OFL. `app/api/waitlist/route.ts`: validação de envio; `lib/waitlist.ts`: insert preparado. Tabela `waitlist`: e-mail normalizado como chave, versão do consentimento e data. Não há endpoint público para leitura de cadastros. Não salvar lista em localStorage.
+`app/page.tsx`: entrada da Studio (os estudos de layout saíram em 08/10). `app/layouts/studio/landing.tsx` e `studio.css`: nova copy e mockups de prova. `app/layouts/concept.tsx`: mídia, exemplos e cadastro compartilhados. `app/globals.css` e `app/layouts/layouts.css`: base visual e responsividade. `public/brand/`: kit Lift e fonte com OFL. `app/api/waitlist/route.ts`: validação de envio; `lib/waitlist.ts`: insert preparado. Tabela `waitlist`: e-mail normalizado como chave, versão do consentimento e data. Não há endpoint público para leitura de cadastros. Não salvar lista em localStorage.
 
 ## Execução
 
