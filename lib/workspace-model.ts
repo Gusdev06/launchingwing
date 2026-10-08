@@ -5,6 +5,9 @@ import type {WorkspaceData} from '@/app/piloto/frontend/model';
 export const MAX_DOC_BYTES=900_000,MAX_FILE_BYTES=20*1024*1024,CHUNK_BYTES=900_000;
 // Cota por conta (saúde P1, 08/10): 10 chaves de espaço e 200 MB de arquivos. Conta é grátis; o banco é um só para todos.
 export const COTA_CHAVES=10,COTA_BYTES=200*1024*1024;
+// Teto do sistema inteiro (saúde P6, 08/10, aprovado pelo dono): 2 GB de arquivos somando todas as contas, abaixo do tamanho do D1.
+// Sem ele, várias contas grátis de 200 MB enchem o banco de todos e nenhuma gravação funciona. Override pelo ambiente só nas provas.
+export const COTA_BYTES_SISTEMA=2*1024*1024*1024;
 export const keySchema=z.string().regex(/^[a-z0-9-]{1,60}$/,'Chave do espaço inválida.');
 const short=z.string().max(300),long=z.string().max(5000),url=z.string().max(2000).refine(v=>!v.startsWith('data:'),'Imagem ainda não enviada.');
 const format=z.enum(['meme','educativo','amiga']),platform=z.enum(['TikTok','Instagram']);
