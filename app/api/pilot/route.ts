@@ -7,9 +7,10 @@ import {createRun,listRuns,casosNasUltimas24h} from '@/lib/pilot-store';
 const CASOS_POR_DIA=3,CASOS_NO_SISTEMA_POR_DIA=15;
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
 import {rateLimited} from '@/lib/rate-limit';
+import {registrarErro} from '@/lib/registrar-erro';
 export async function GET(request:Request){
  const owner=await pilotIdentity(request);if(!owner)return Response.json({error:'Entre para abrir seus casos.'},{status:401,headers:pilotHeaders});
- try{return Response.json({runs:await listRuns(owner)},{headers:pilotHeaders})}catch{console.error('Pilot list unavailable');return Response.json({error:'Não conseguimos carregar seus casos. Tente novamente.'},{status:503,headers:pilotHeaders})}
+ try{return Response.json({runs:await listRuns(owner)},{headers:pilotHeaders})}catch(error){registrarErro('pilot_listar',error);return Response.json({error:'Não conseguimos carregar seus casos. Tente novamente.'},{status:503,headers:pilotHeaders})}
 }
 export async function POST(request:Request){
  const owner=await pilotIdentity(request,true);if(!owner)return Response.json({error:'Entre novamente para salvar o caso.'},{status:403,headers:pilotHeaders});
@@ -24,5 +25,5 @@ export async function POST(request:Request){
   if(!run)return tetoDaConta;
   if(mode==='api'){try{run=await syncGeneration(owner,run)}catch{/* Saved claim resumes on the next progress request. */}}
   return Response.json({run},{status:201,headers:pilotHeaders})
- }catch(error){console.error('Pilot creation unavailable');return Response.json({error:error instanceof Error?error.message:'O caso não foi salvo. Seu link continua aqui; tente novamente.'},{status:503,headers:pilotHeaders})}
+ }catch(error){registrarErro('pilot_criar',error);return Response.json({error:error instanceof Error?error.message:'O caso não foi salvo. Seu link continua aqui; tente novamente.'},{status:503,headers:pilotHeaders})}
 }
