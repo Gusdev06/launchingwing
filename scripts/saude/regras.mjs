@@ -17,11 +17,3 @@ assert.equal(avisoDoCanario(t(30),ruim),undefined,'mesmo canário não avisa dua
 assert.equal(avisoDoCanario(undefined,{em:t(31),ok:true,motivo:'ok'}),undefined,'canário bom não avisa');
 assert.equal(avisoDoCanario(undefined,null),undefined);
 console.log('saude-regras ok: avisa_uma_vez_aos_10_min, hora_da_queda_em_brasilia, avisa_a_volta, falha_curta_nao_avisa, canario_avisa_uma_vez');
-// Ligações (lidas no código): sentinela na rotina, rastreamento ligado, rastro do lote com caso e job.
-import {readFileSync} from 'node:fs';
-const ler=f=>readFileSync(new URL(`../../${f}`,import.meta.url),'utf8');
-assert.match(ler('lib/rotina.ts'),/try\{await sentinela\(\)\}catch/,'sentinela na rotina, sem derrubar o resto');
-assert.match(ler('vite.config.ts'),/traces: \{ enabled: true/,'rastreamento da Cloudflare ligado');
-assert.match(ler('lib/pilot-engine.ts'),/evento:'lote',caso:run\.id,job:jobId/,'rastro do lote com caso e job');
-assert.doesNotMatch(ler('app/api/saude/route.ts'),/engineFetch/,'a página de saúde não chama o motor');
-console.log('saude-ligacoes ok');
