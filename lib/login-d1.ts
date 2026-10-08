@@ -16,6 +16,7 @@ export function lojaD1():Loja{
   salvarCodigo:async(email,hash,expira)=>{await db.prepare('INSERT INTO login_codigos (email,hash,expira,tentativas) VALUES (?,?,?,0) ON CONFLICT(email) DO UPDATE SET hash=excluded.hash,expira=excluded.expira,tentativas=0').bind(email,hash,expira).run()},
   somarTentativa:async email=>(await db.prepare('UPDATE login_codigos SET tentativas=tentativas+1 WHERE email=? RETURNING tentativas').bind(email).first<{tentativas:number}>())?.tentativas??0,
   apagarCodigo:async email=>{await db.prepare('DELETE FROM login_codigos WHERE email=?').bind(email).run()},
+  consumirCodigo:async(email,hash)=>(await db.prepare('DELETE FROM login_codigos WHERE email=? AND hash=?').bind(email,hash).run()).meta.changes===1,
   acharUsuario:email=>db.prepare('SELECT id,email FROM usuarios WHERE email=?').bind(email).first(),
   criarUsuario:async(id,email)=>{await db.prepare('INSERT INTO usuarios (id,email,criado_em) VALUES (?,?,?) ON CONFLICT(email) DO NOTHING').bind(id,email,Date.now()).run();return (await db.prepare('SELECT id,email FROM usuarios WHERE email=?').bind(email).first<{id:string;email:string}>())!},
   salvarSessao:async(hash,u,expira)=>{await db.prepare('INSERT INTO sessoes (hash,user_id,email,expira) VALUES (?,?,?,?)').bind(hash,u.userId,u.email,expira).run()},

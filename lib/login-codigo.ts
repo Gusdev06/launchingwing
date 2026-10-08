@@ -8,6 +8,8 @@ export type Loja={
  salvarCodigo(email:string,hash:string,expira:number):Promise<void>;
  somarTentativa(email:string):Promise<number>;
  apagarCodigo(email:string):Promise<void>;
+ // Apaga o código só se o hash ainda for este e diz se apagou: quem perder a corrida do clique duplo recebe false.
+ consumirCodigo(email:string,hash:string):Promise<boolean>;
  acharUsuario(email:string):Promise<{id:string;email:string}|null>;
  // Cria se não existir; se o e-mail já tem dono, devolve o dono que já estava.
  criarUsuario(id:string,email:string):Promise<{id:string;email:string}>;
@@ -39,9 +41,11 @@ export async function verificarCodigo(loja:Loja,emailBruto:string,codigoBruto:st
  const email=normalizarEmail(emailBruto),codigo=String(codigoBruto).replace(/\D/g,'');
  const falha={ok:false as const,erro:'Código errado ou vencido. Peça um novo código.'};
  const salvo=await loja.pegarCodigo(email);if(!salvo)return falha;
- if(salvo.expira<=agora()||salvo.tentativas>=TENTATIVAS){await loja.apagarCodigo(email);return falha}
- if(codigo.length!==6||await resumoDoCodigo(email,codigo,segredo)!==salvo.hash){if(await loja.somarTentativa(email)>=TENTATIVAS)await loja.apagarCodigo(email);return falha}
- await loja.apagarCodigo(email);
+ if(salvo.expira<=agora()){await loja.apagarCodigo(email);return falha}
+ // Soma a tentativa ANTES de comparar: numa rajada em paralelo, só as primeiras TENTATIVAS chegam a olhar o hash.
+ if(await loja.somarTentativa(email)>TENTATIVAS){await loja.apagarCodigo(email);return falha}
+ if(codigo.length!==6||await resumoDoCodigo(email,codigo,segredo)!==salvo.hash)return falha;
+ if(!await loja.consumirCodigo(email,salvo.hash))return falha;
  const dono=await loja.acharUsuario(email)??await loja.criarUsuario(crypto.randomUUID(),email);
  const usuario={userId:dono.id,email},token=gerarToken();
  await loja.salvarSessao(await resumoDaSessao(token),usuario,agora()+SESSAO_MS);
@@ -60,7 +64,7 @@ export async function lembrarUsuario(loja:Loja,id:string,email:string){await loj
 
 export function enviarPorResend(f:typeof fetch,o:{chave:string;de:string}):Enviar{
  return async(email,codigo)=>{
-  const r=await f('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${o.chave}`,'Content-Type':'application/json'},
+  const r=await f('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${o.chave}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),
    body:JSON.stringify({from:o.de,to:[email],subject:'Seu código para entrar na Launchwing',text:`Seu código é ${codigo}. Ele vale por 10 minutos.\n\nSe não foi você que pediu, ignore este e-mail.`})});
   if(!r.ok)throw new Error(`O envio do e-mail falhou (${r.status}).`);
  };
