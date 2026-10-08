@@ -7,12 +7,15 @@ import {runData as dados,syncGeneration} from './pilot-engine';
 import {findRun,saveRun} from './pilot-store';
 import {guardarMidia,arquivosDoLote,loteDaUrl} from './midia';
 import {postarAprovadas,PRAZO_DESFAZER_MS} from './postagem';
+import {sentinela} from './saude';
 
 const db=()=>(env as unknown as {DB:D1Database}).DB;
 // PRAZO_DESFAZER_SEGUNDOS só para a prova do esqueleto (prazo curto); no ar vale o padrão de lib/postagem.ts.
 const prazoDesfazer=()=>{const s=Number((env as unknown as {PRAZO_DESFAZER_SEGUNDOS?:string}).PRAZO_DESFAZER_SEGUNDOS);return s>0?s*1000:PRAZO_DESFAZER_MS};
 
 export async function rotina(){
+ // Sentinela do motor e do lote de teste (lib/saude.ts, 08/10). Erro aqui nunca para o resto da rotina.
+ try{await sentinela()}catch(e){console.error(JSON.stringify({evento:'sentinela_falhou',erro:e instanceof Error?e.message:String(e)}))}
  const desde=new Date(Date.now()-3*86400000).toISOString();
  const {results}=await db().prepare(`SELECT id,owner_id FROM pilot_runs WHERE updated_at>? AND (json_extract(data,'$.generation.status') IN ('queued','running') OR EXISTS (SELECT 1 FROM json_each(data,'$.pieces') WHERE json_extract(value,'$.status')='approved' AND json_extract(value,'$.postagem') IS NULL) OR (json_extract(data,'$.generation.kind')='production' AND json_extract(data,'$.generation.status')='succeeded' AND json_extract(data,'$.midiaGuardada') IS NOT json_extract(data,'$.generation.jobId'))) ORDER BY updated_at DESC LIMIT 25`).bind(desde).all<{id:string;owner_id:string}>();
  for(const {id,owner_id:dono} of results){
