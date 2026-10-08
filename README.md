@@ -2,7 +2,7 @@
 
 ## Publicar sem o ChatGPT Sites (decisão de 28/09/2026)
 
-**No ar desde 28/09/2026** em https://launchwing.launchwing.workers.dev, na conta Cloudflare do Nicolas (Worker `launchwing`, D1 `launchwing`, migrações 0000 a 0005 aplicadas). Login ainda não configurado: páginas privadas voltam para a landing e cabeçalho de identidade falso responde 401 (conferido por execução). Falta criar o Zero Trust (Access) e as variáveis do RunPod.
+**No ar desde 28/09/2026** em https://launchwing.launchwing.workers.dev, na conta Cloudflare do Nicolas (Worker `launchwing`, D1 `launchwing`, migrações 0000 a 0005 aplicadas). Login ainda não configurado: páginas privadas voltam para a landing e cabeçalho de identidade falso responde 401 (conferido por execução). Falta criar o Zero Trust (Access).
 
 O app roda direto na Cloudflare (Workers e D1), sem o Sites no meio. O login passa a ser o Cloudflare Access (código por e-mail, grátis até 50 usuários): o Worker só aceita o JWT que o Access injeta, verificado em `lib/access-jwt.ts` (prova em `scripts/painel/access-smoke.mjs`, 8 casos). Sem `CF_ACCESS_TEAM_DOMAIN` e `CF_ACCESS_AUD`, o app volta a aceitar os cabeçalhos do ChatGPT e o login local de teste.
 
@@ -11,10 +11,12 @@ Uma vez, no painel da Cloudflare: criar o banco D1 (anotar id e nome), um token 
 ```bash
 export CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_D1_ID=... CLOUDFLARE_D1_NAME=launchwing
 npm run deploy                      # build, migrações remotas (drizzle/ vira migrations/) e wrangler deploy
-npx wrangler secret put OPENAI_API_KEY -c dist/server/wrangler.json      # idem CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD
+npx wrangler secret put CF_ACCESS_TEAM_DOMAIN -c dist/server/wrangler.json      # idem CF_ACCESS_AUD, LAUNCHWING_ENGINE_URL, LAUNCHWING_ENGINE_TOKEN
 ```
 
-Dev local: `npm run build && npm run db:migrate:local` cria as tabelas no banco do `npm run dev`. CI em `.github/workflows/verificar.yml`: tipos, build, lint (avisos antigos não bloqueiam), provas sem servidor e os três smokes contra o servidor local com RunPod simulado.
+Dev local: `npm run build && npm run db:migrate:local` cria as tabelas no banco do `npm run dev`. CI em `.github/workflows/verificar.yml`: tipos, build, lint (avisos antigos não bloqueiam), provas sem servidor e os três smokes contra o servidor local.
+
+**Sem IA paga (08/10/2026):** a imagem e o vídeo por IA saíram do site a pedido do Gustavo (contrato C4: nenhuma chamada paga sai daqui). Foram apagados `lib/openai-imagem.ts`, `lib/runpod.ts`, as rotas `/api/painel/arte`, o diálogo "Criar imagem com IA" e as variáveis `OPENAI_*`. A tabela `art_jobs` continua no esquema até uma migração a parte. Prova: `scripts/painel/sem-ia-paga-smoke.mjs` (a rota responde 404 mesmo com chave no ambiente e um provedor falso não recebe nada). Os registros abaixo sobre OpenAI e RunPod são históricos.
 
 **Limite de taxa e aviso de crédito, 27/09/2026 (noite):** tabela `rate_limits` no D1 (migração `0005_dear_slapstick.sql`, sem KV): cadastro de e-mail 10 por hora por IP (`CF-Connecting-IP`), gravações do painel 120 por minuto por usuário, envios de arquivo 60 por hora por usuário; excesso responde 429 com mensagem. Se o banco falhar, deixa passar. `GET /api/painel/arte` passa a trazer o crédito da conta RunPod (GraphQL `myself.clientBalance`) e `saldoBaixo` abaixo de US$ 3; a tela "Uso e plano" mostra conexão, tetos diários e crédito, e o diálogo de geração avisa quando o crédito está baixo. Provas: `scripts/painel/smoke.mjs` 20 casos, `arte-smoke.mjs` 22 casos, tela real.
 

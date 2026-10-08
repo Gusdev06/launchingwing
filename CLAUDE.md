@@ -13,7 +13,7 @@ npm run lint                         # eslint
 npm run db:generate                  # migração após mudar db/schema.ts (nunca aplicar em produção à mão)
 node scripts/pilot/smoke.mjs         # prova das rotas do piloto, precisa do dev rodando
 node scripts/painel/smoke.mjs        # prova das rotas do painel, idem
-node scripts/painel/arte-smoke.mjs   # geração de imagem contra OpenAI falsa (OPENAI_BASE_URL e OPENAI_API_KEY=chave-falsa-local em .dev.vars)
+node scripts/painel/sem-ia-paga-smoke.mjs # prova que nenhuma chamada paga de IA sai do site (rota de imagem 404), idem
 node scripts/painel/export-smoke.mjs # pacote ZIP do painel, sem servidor
 node scripts/painel/access-smoke.mjs # JWT do Cloudflare Access, sem servidor
 node scripts/saude/commit-regras.mjs # commit publicado em /api/saude e no deploy, sem servidor
@@ -31,7 +31,7 @@ Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver
 - `lib/pilot-store.ts` padrão de gravação no D1: linha por dono, `revision` confere antes de gravar, 409 se mudou.
 - `lib/pilot-engine.ts` gerador privado (Claude e Apify) fora deste repo, via `LAUNCHWING_ENGINE_URL` e token. Não dá para testar aqui.
 - `app/piloto/frontend/` painel de 14 telas. `model.ts` tipos e dados iniciais. `workspace.tsx` estado e gravação.
-- `lib/openai-imagem.ts` cliente do ChatGPT Image (imagem por IA). `lib/runpod.ts` guarda o vídeo do RunPod, hoje desligado. Chaves em `.dev.vars` (modelo em `.dev.vars.example`), nunca no git.
+- Imagem e vídeo por IA saíram do site em 08/10/2026 (decisão do Gustavo: nenhuma chamada paga sai daqui). A tabela `art_jobs` ficou no esquema até uma migração a parte. Chaves em `.dev.vars` (modelo em `.dev.vars.example`), nunca no git.
 - `db/schema.ts` e `drizzle/` esquema e migrações. Aplicar: `npm run db:migrate:local` ou `:remote`.
 - `scripts/pilot/*.mjs` provas por execução contra o dev local.
 
