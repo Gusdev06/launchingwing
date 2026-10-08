@@ -13,7 +13,7 @@ async function call(path,{method='GET',body,auth=true,origin=base,raw,type}={}){
 }
 const chave=`smoke-${crypto.randomUUID()}`;
 const data={version:1,brand:{name:'Marca de prova',site:'https://exemplo.com',description:'',audience:'',problem:'',benefit:'',tone:'',angles:['um'],avoid:'',mention:'Às vezes',color:'#2547FF',logo:''},contents:[{id:'c1',title:'Título',format:'meme',caption:'Legenda',slides:[{id:'s1',image:'/workspace/01-celular-cafe-cama.jpg',text:'',position:'top',size:30}],origin:'local',status:'draft',createdAt:'2026-09-27T00:00:00Z'}],media:[],plans:[],campaigns:[],favorites:[],collections:[],preferences:{language:'Português (Brasil)',timezone:'America/Sao_Paulo',readyAlerts:true,failureAlerts:true,weeklyAlerts:false}};
-const marks=[];
+const marks=[],extras=[];
 try{
  assert.equal((await call(`/api/painel?chave=${chave}`,{auth:false})).status,401);marks.push('anonymous_read_blocked');
  assert.equal((await call('/api/painel',{method:'PUT',origin:'https://example.com',body:{chave,revision:-1,data}})).status,403);marks.push('cross_origin_write_blocked');
@@ -35,6 +35,12 @@ try{
  const served=await call(uploaded.data.url,{raw:''});assert.equal(served.status,200);assert.equal(served.type,'image/png');assert.ok(served.bytes.equals(big),'bytes identical');marks.push('file_served_byte_identical');
  assert.equal((await call('/api/painel/arquivo/00000000-0000-4000-8000-000000000000',{raw:''})).status,404);marks.push('unknown_file_404');
  const withFile=await call('/api/painel',{method:'PUT',body:{chave,revision:1,data:{...data,media:[{id:'m1',name:'prova.png',src:uploaded.data.url,kind:'image',collection:'Meus arquivos',origin:'Arquivo local'}]}}});assert.equal(withFile.status,200);marks.push('file_url_accepted_in_document');
+ // Cota por conta (saúde P1): 10 chaves por conta. O dev pode já ter a chave `preview` do painel; as extras completam as 10 e a seguinte recebe 413.
+ const existentes=1+((await call('/api/painel?chave=preview')).data.workspace?1:0);
+ for(let i=1;i<=10-existentes;i++){assert.equal((await call('/api/painel',{method:'PUT',body:{chave:`${chave}-c${i}`,revision:-1,data}})).status,200,`chave extra ${i}`);extras.push(i)}
+ assert.equal((await call('/api/painel',{method:'PUT',body:{chave:`${chave}-c${11-existentes}`,revision:-1,data}})).status,413);marks.push('eleventh_key_rejected_413');
+ assert.equal((await call('/api/painel',{method:'PUT',body:{chave,revision:-1,data}})).status,409);marks.push('duplicate_create_still_409_when_full');
+ for(const i of extras.splice(0))assert.equal((await call(`/api/painel?chave=${chave}-c${i}`,{method:'DELETE'})).status,200);
  assert.equal((await call(`/api/painel?chave=${chave}`,{method:'DELETE'})).status,200);
  assert.deepEqual((await call(`/api/painel?chave=${chave}`)).data,{workspace:null});assert.equal((await call(uploaded.data.url,{raw:''})).status,404);marks.push('delete_removes_document_and_files');
  // No dev todo pedido chega com o mesmo IP (127.0.0.1), então a prova é: depois de 11 envios seguidos o
@@ -42,4 +48,4 @@ try{
  const codes=[];for(let i=0;i<11;i++)codes.push((await fetch(`${base}/api/waitlist`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'x@y.z',website:'bot'})})).status);
  assert.equal(codes.at(-1),429,`códigos: ${codes.join(',')}`);assert.ok(codes.every(c=>c===200||c===429));marks.push('waitlist_rate_limited_after_10_per_hour');
  console.log(JSON.stringify({passed:marks}));
-}catch(error){console.error(JSON.stringify({passed:marks}));await call(`/api/painel?chave=${chave}`,{method:'DELETE'}).catch(()=>{});throw error}
+}catch(error){console.error(JSON.stringify({passed:marks}));await call(`/api/painel?chave=${chave}`,{method:'DELETE'}).catch(()=>{});for(const i of extras)await call(`/api/painel?chave=${chave}-c${i}`,{method:'DELETE'}).catch(()=>{});throw error}

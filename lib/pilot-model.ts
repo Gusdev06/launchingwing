@@ -18,7 +18,7 @@ export const onboardingSchema=z.object({
 export type PilotAnswers=z.infer<typeof onboardingSchema>;
 export type PilotOnboarding={step:number;answers:PilotAnswers;completedAt:string|null};
 export type PilotSource={url:string;label:string;checkedAt:string};
-export type PilotGeneration={key:string;jobId?:string;kind:'analysis'|'production';status:'queued'|'running'|'failed'|'succeeded';stage:string;message:string;progress:number;error?:string;retryRequested?:boolean};
+export type PilotGeneration={key:string;jobId?:string;kind:'analysis'|'production';status:'queued'|'running'|'failed'|'succeeded';stage:string;message:string;progress:number;error?:string;retryRequested?:boolean;retries?:number};
 export type PilotData={
  url:string;caseId:string|null;phase:'queued'|'context'|'ready'|'review'|'analyzing'|'generating'|'failed';
  mode?:'api'|'demo';generation?:PilotGeneration;uncertainties?:string[];

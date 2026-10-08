@@ -4,6 +4,8 @@ import {preparedPieces} from '@/lib/pilot-cases';
 import {findRun,saveRun} from '@/lib/pilot-store';
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
 type Params={params:Promise<{id:string}>};
+// "Retomar geração" roda o job pago de novo no motor: vale 3 vezes por geração (saúde P1, 08/10).
+const TENTATIVAS_POR_GERACAO=3;
 export async function GET(request:Request,{params}:Params){
  const owner=await pilotIdentity(request);if(!owner)return Response.json({error:'Entre para abrir seu caso.'},{status:401,headers:pilotHeaders});
  try{const run=await findRun(owner,(await params).id);return run?Response.json({run},{headers:pilotHeaders}):Response.json({error:'Caso não encontrado.'},{status:404,headers:pilotHeaders})}catch{console.error('Pilot read unavailable');return Response.json({error:'Não foi possível abrir o caso.'},{status:503,headers:pilotHeaders})}
@@ -29,7 +31,8 @@ export async function PATCH(request:Request,{params}:Params){
      next.generation=generation('production');next.phase='generating';
     }else{
      if(run.phase!=='failed'||!run.generation)throw new Error('Esta geração não precisa de uma nova tentativa.');
-     next.generation={...run.generation,status:'queued',retryRequested:true,error:undefined};next.phase=run.generation.kind==='analysis'?'analyzing':'generating';
+     if((run.generation.retries??0)>=TENTATIVAS_POR_GERACAO)throw new Error(`Esta geração já foi retomada ${TENTATIVAS_POR_GERACAO} vezes. Abra outro caso.`);
+     next.generation={...run.generation,status:'queued',retryRequested:true,retries:(run.generation.retries??0)+1,error:undefined};next.phase=run.generation.kind==='analysis'?'analyzing':'generating';
     }
    }else next=applyPilotAction(data,parsed.data,preparedPieces(run.caseId));
    if(parsed.data.action==='swipe'&&next.flow==='blitz'&&next.generation?.kind==='production'&&next.generation.status==='succeeded'&&(next.batches??1)<3&&next.pieces.filter(p=>p.status==='pending').length<=1)queueProduction(next);
