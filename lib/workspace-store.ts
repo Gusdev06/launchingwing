@@ -1,15 +1,17 @@
 import {env} from 'cloudflare:workers';
 import type {WorkspaceData} from '@/app/piloto/frontend/model';
-import {CHUNK_BYTES,COTA_BYTES,COTA_CHAVES} from './workspace-model';
+import {CHUNK_BYTES,COTA_BYTES,COTA_BYTES_SISTEMA,COTA_CHAVES} from './workspace-model';
 export type StoredWorkspace={data:WorkspaceData;revision:number;updatedAt:string};
 export type StoredFile={id:string;name:string;mime:string;size:number;chunks:number};
 type Row={data:string;revision:number;updated_at:string};
 function db(){const database=(env as unknown as {DB?:D1Database}).DB;if(!database)throw new Error('Workspace database unavailable');return database}
 // A conta passou da cota: as rotas respondem 413 com a mensagem.
 export class CotaExcedida extends Error{}
-// Bytes de arquivo que a conta já ocupa, somando todos os espaços dela.
-async function bytesDeArquivos(owner:string){
- const r=await db().prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM workspace_files WHERE owner_id=?').bind(owner).first<{bytes:number}>();
+// Cotas de bytes: a variável de ambiente só existe nas provas (scripts/pilot/cota-concorrente-smoke.mjs); no ar valem as constantes.
+const cota=(nome:'COTA_BYTES_CONTA'|'COTA_BYTES_SISTEMA',padrao:number)=>{const n=Number((env as unknown as Record<string,string|undefined>)[nome]);return n>0?n:padrao};
+// Bytes de arquivo que o sistema inteiro já ocupa. Só escolhe a mensagem: a cota de verdade é conferida dentro do INSERT, em createFile.
+async function bytesDoSistema(){
+ const r=await db().prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM workspace_files').first<{bytes:number}>();
  return r?.bytes??0;
 }
 export async function findWorkspace(owner:string,key:string):Promise<StoredWorkspace|null>{
@@ -36,11 +38,16 @@ export async function deleteWorkspace(owner:string,key:string){
  await db().batch(statements);
 }
 export async function createFile(owner:string,key:string,name:string,mime:string,bytes:Uint8Array):Promise<StoredFile>{
- if(await bytesDeArquivos(owner)+bytes.byteLength>COTA_BYTES)throw new CotaExcedida(`Sua conta chegou a ${Math.round(COTA_BYTES/1024/1024)} MB de arquivos. Apague arquivos antes de enviar outro.`);
- const id=crypto.randomUUID(),chunks=Math.max(1,Math.ceil(bytes.byteLength/CHUNK_BYTES)),now=new Date().toISOString();
- const statements=[db().prepare('INSERT INTO workspace_files (id,owner_id,workspace_key,name,mime,size,chunks,created_at) VALUES (?,?,?,?,?,?,?,?)').bind(id,owner,key,name,mime,bytes.byteLength,chunks,now)];
- for(let seq=0;seq<chunks;seq++){const part=bytes.slice(seq*CHUNK_BYTES,(seq+1)*CHUNK_BYTES);statements.push(db().prepare('INSERT INTO workspace_file_chunks (file_id,seq,bytes) VALUES (?,?,?)').bind(id,seq,part.buffer.slice(part.byteOffset,part.byteOffset+part.byteLength)))}
- await db().batch(statements);
+ const id=crypto.randomUUID(),chunks=Math.max(1,Math.ceil(bytes.byteLength/CHUNK_BYTES)),now=new Date().toISOString(),cotaConta=cota('COTA_BYTES_CONTA',COTA_BYTES),cotaSistema=cota('COTA_BYTES_SISTEMA',COTA_BYTES_SISTEMA);
+ // As duas somas (a conta e o sistema inteiro) vão na mesma instrução que grava a linha do arquivo: envios ao mesmo tempo não passam juntos da cota.
+ // Os pedaços só entram se a linha entrou, e o batch é uma transação: nada fica pela metade.
+ const statements=[db().prepare('INSERT INTO workspace_files (id,owner_id,workspace_key,name,mime,size,chunks,created_at) SELECT ?,?,?,?,?,?,?,? WHERE (SELECT COALESCE(SUM(size),0) FROM workspace_files WHERE owner_id=?)+?<=? AND (SELECT COALESCE(SUM(size),0) FROM workspace_files)+?<=?').bind(id,owner,key,name,mime,bytes.byteLength,chunks,now,owner,bytes.byteLength,cotaConta,bytes.byteLength,cotaSistema)];
+ for(let seq=0;seq<chunks;seq++){const part=bytes.slice(seq*CHUNK_BYTES,(seq+1)*CHUNK_BYTES);statements.push(db().prepare('INSERT INTO workspace_file_chunks (file_id,seq,bytes) SELECT ?,?,? WHERE EXISTS (SELECT 1 FROM workspace_files WHERE id=?)').bind(id,seq,part.buffer.slice(part.byteOffset,part.byteOffset+part.byteLength),id))}
+ const [linha]=await db().batch(statements);
+ if(linha.meta.changes!==1){
+  if(await bytesDoSistema()+bytes.byteLength>cotaSistema)throw new CotaExcedida('O site está sem espaço para novos arquivos agora. Tente mais tarde.');
+  throw new CotaExcedida(`Sua conta chegou a ${Math.round(cotaConta/1024/1024)} MB de arquivos. Apague arquivos antes de enviar outro.`);
+ }
  return {id,name,mime,size:bytes.byteLength,chunks};
 }
 export async function findFile(owner:string,id:string):Promise<StoredFile|null>{
