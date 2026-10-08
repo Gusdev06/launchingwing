@@ -4,9 +4,10 @@
 import {env} from 'cloudflare:workers';
 import {engineFetch} from './pilot-engine';
 import {avisarTelegram} from './telegram';
-import {proximoEstado,avisoDoCanario,type EstadoDoMotor,type Canario} from './saude-regras';
+import {proximoEstado,avisoDoCanario,commitPublicado,type EstadoDoMotor,type Canario} from './saude-regras';
 
 const db=()=>(env as unknown as {DB:D1Database}).DB;
+export const commitNoAr=()=>commitPublicado(env as unknown as {LAUNCHWING_COMMIT?:unknown});
 async function ler<T>(chave:string):Promise<T|null>{const r=await db().prepare('SELECT valor FROM saude WHERE chave=?').bind(chave).first<{valor:string}>();return r?JSON.parse(r.valor) as T:null}
 async function gravar(chave:string,valor:unknown,agora:string){await db().prepare('INSERT INTO saude(chave,valor,atualizado) VALUES(?,?,?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor,atualizado=excluded.atualizado').bind(chave,JSON.stringify(valor),agora).run()}
 
@@ -23,11 +24,11 @@ export async function sentinela(agora=new Date().toISOString()){
  if(avisoCanario&&canario){console.warn(JSON.stringify({evento:'canario_falhou',job:canario.job,motivo:canario.motivo}));await avisarTelegram(avisoCanario);await gravar('canario_avisado',canario.em,agora)}
 }
 
-// O que /api/saude mostra: sem segredo e sem dado de cliente.
+// O que /api/saude mostra: sem segredo e sem dado de cliente. commit é o que o deploy publicou (prova do que está no ar).
 export async function resumoDaSaude(){
  const r=await db().prepare('SELECT chave,valor,atualizado FROM saude').all<{chave:string;valor:string;atualizado:string}>();
  const m=new Map(r.results.map(x=>[x.chave,{v:JSON.parse(x.valor),em:x.atualizado}]));
  const motor=m.get('motor'),h=m.get('motor_health')?.v as {acervo?:unknown;lotes24h?:unknown;canario?:Canario|null}|undefined;
- return {site:'ok',conferidoEm:motor?.em??null,motor:motor?{noAr:!motor.v.fora,falhasSeguidas:motor.v.falhas,desde:motor.v.desde}:null,
+ return {site:'ok',commit:commitNoAr(),conferidoEm:motor?.em??null,motor:motor?{noAr:!motor.v.fora,falhasSeguidas:motor.v.falhas,desde:motor.v.desde}:null,
   acervo:h?.acervo??null,lotes24h:h?.lotes24h??null,canario:h?.canario?{em:h.canario.em,ok:h.canario.ok,motivo:h.canario.motivo}:null};
 }

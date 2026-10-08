@@ -16,6 +16,7 @@ node scripts/painel/smoke.mjs        # prova das rotas do painel, idem
 node scripts/painel/arte-smoke.mjs   # geração de imagem contra OpenAI falsa (OPENAI_BASE_URL e OPENAI_API_KEY=chave-falsa-local em .dev.vars)
 node scripts/painel/export-smoke.mjs # pacote ZIP do painel, sem servidor
 node scripts/painel/access-smoke.mjs # JWT do Cloudflare Access, sem servidor
+node scripts/saude/commit-regras.mjs # commit publicado em /api/saude e no deploy, sem servidor
 npm run db:migrate:local             # tabelas no banco do dev (depois de npm run build)
 ```
 

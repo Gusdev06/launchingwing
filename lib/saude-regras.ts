@@ -3,6 +3,8 @@ export type EstadoDoMotor={falhas:number;fora:boolean;desde:string};
 export type Canario={em:string;ok:boolean;motivo:string;job?:string};
 // A rotina roda a cada 2 min: 5 falhas seguidas são 10 min fora. Menos que isso é túnel piscando e não vale acordar ninguém.
 export const FALHAS_PARA_AVISAR=5;
+// Commit publicado: o deploy entrega LAUNCHWING_COMMIT ao Worker; sem a variável, /api/saude responde commit:null.
+export const commitPublicado=(c:{LAUNCHWING_COMMIT?:unknown})=>typeof c.LAUNCHWING_COMMIT==='string'&&c.LAUNCHWING_COMMIT?c.LAUNCHWING_COMMIT:null;
 
 // O dono lê o aviso no horário de Brasília (08/10).
 export function horaDeBrasilia(iso:string){return new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(iso))}
