@@ -82,3 +82,9 @@ export const sessoes=sqliteTable('sessoes',{
  email:text('email').notNull(),
  expira:integer('expira').notNull(),
 },t=>[index('idx_sessoes_user').on(t.userId)]);
+// Saúde do Launchwing (08/10): estado da sentinela da rotina (motor no ar, falhas, último canário avisado, último /health).
+export const saude=sqliteTable('saude',{
+ chave:text('chave').primaryKey(),
+ valor:text('valor').notNull(),
+ atualizado:text('atualizado').notNull(),
+});

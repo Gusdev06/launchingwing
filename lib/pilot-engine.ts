@@ -35,6 +35,8 @@ export async function syncGeneration(owner:string,run:PilotRun){
  const job=jobSchema.parse(await(await engineFetch(`/jobs/${jobId}`)).json());
  if(job.kind!==current.kind)throw new Error('A geração não corresponde a este caso.');
  const next=runData(run);next.generation={...current,jobId,status:job.status,stage:job.stage,message:job.message,progress:job.progress,error:job.error||undefined,retryRequested:undefined};
+ // Rastro do lote (08/10): o mesmo job aparece no registro do motor ([producao] <job>), então dá para seguir do site ao motor.
+ if(job.status!==current.status)console.log(JSON.stringify({evento:'lote',caso:run.id,job:jobId,tipo:job.kind,de:current.status,para:job.status,etapa:job.stage,...(job.error?{erro:job.error.slice(0,200)}:{})}));
  if(job.status==='failed')next.phase='failed';
  if(run.flow==='blitz'&&job.result){
   if(job.kind==='analysis'){const partial=analysisSchema.safeParse(job.result);if(partial.success)Object.assign(next,partial.data)}
