@@ -21,6 +21,7 @@ jobs:
           node scripts/painel/access-smoke.mjs
           node scripts/painel/export-smoke.mjs
           node scripts/pilot/export-smoke.mjs
+          node scripts/saude/regras.mjs
       - name: banco local com as migracoes
         run: node scripts/migracoes.mjs local
       - name: provas contra o servidor local

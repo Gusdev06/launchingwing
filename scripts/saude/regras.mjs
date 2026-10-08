@@ -7,8 +7,8 @@ let e={falhas:0,fora:false,desde:t(0)},avisos=[];
 for(let i=1;i<=7;i++){const r=proximoEstado(e,false,t(i*2));e=r.estado;if(r.aviso)avisos.push(r.aviso)}
 assert.equal(FALHAS_PARA_AVISAR,5);
 assert.equal(avisos.length,1,'fora do ar avisa uma vez só');assert.match(avisos[0],/fora do ar há 10 min/);
-assert.equal(e.fora,true);assert.equal(e.desde,t(10),'fora desde a 5ª falha');
-const volta=proximoEstado(e,true,t(20));assert.match(volta.aviso,/voltou/);assert.deepEqual(volta.estado,{falhas:0,fora:false,desde:t(20)});
+assert.equal(e.fora,true);assert.equal(e.desde,t(2),'fora desde a 1ª falha, a hora da queda');
+const volta=proximoEstado(e,true,t(20));assert.equal(volta.aviso,'O motor do Launchwing voltou (estava fora desde 07:02, horário de Brasília).');assert.deepEqual(volta.estado,{falhas:0,fora:false,desde:t(20)});
 assert.equal(proximoEstado(volta.estado,true,t(22)).aviso,undefined,'no ar continua sem aviso');
 const quase=proximoEstado({falhas:3,fora:false,desde:t(0)},true,t(8));assert.equal(quase.aviso,undefined,'falha curta não avisa');assert.equal(quase.estado.falhas,0);
 const ruim={em:t(30),ok:false,motivo:'só 1 de 3 peças'};
@@ -16,7 +16,7 @@ assert.match(avisoDoCanario(undefined,ruim),/lote de teste falhou: só 1 de 3 pe
 assert.equal(avisoDoCanario(t(30),ruim),undefined,'mesmo canário não avisa duas vezes');
 assert.equal(avisoDoCanario(undefined,{em:t(31),ok:true,motivo:'ok'}),undefined,'canário bom não avisa');
 assert.equal(avisoDoCanario(undefined,null),undefined);
-console.log('saude-regras ok: avisa_uma_vez_aos_10_min, avisa_a_volta, falha_curta_nao_avisa, canario_avisa_uma_vez');
+console.log('saude-regras ok: avisa_uma_vez_aos_10_min, hora_da_queda_em_brasilia, avisa_a_volta, falha_curta_nao_avisa, canario_avisa_uma_vez');
 // Ligações (lidas no código): sentinela na rotina, rastreamento ligado, rastro do lote com caso e job.
 import {readFileSync} from 'node:fs';
 const ler=f=>readFileSync(new URL(`../../${f}`,import.meta.url),'utf8');
