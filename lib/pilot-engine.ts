@@ -21,7 +21,9 @@ export function initialApiData(url:string,extra:Partial<PilotData>={}):PilotData
 const jobSchema=z.object({id:z.string().uuid(),kind:z.enum(['analysis','production']),status:z.enum(['queued','running','succeeded','failed']),stage:z.string().max(100),message:z.string().max(1000),progress:z.number().min(0).max(100),error:z.string().max(1000).nullable(),result:z.unknown()});
 const analysisSchema=z.object({context:contextSchema,facts:z.array(z.string().max(1000)).max(15),uncertainties:z.array(z.string().max(1500)).max(15),sources:z.array(z.object({url:z.string().url(),label:z.string().max(150),checkedAt:z.string().max(30)})).max(5)});
 export function mergeGeneratedPieces(existing:PilotPiece[],incoming:PilotPiece[]){const seen=new Set(existing.map(p=>p.id));return [...existing,...incoming.filter(p=>!seen.has(p.id))]}
-export function queueProduction(data:PilotData){data.generation=generation('production');data.phase='generating';data.batches=(data.batches??0)+1;data.events.push({at:new Date().toISOString(),kind:'api_production_requested'})}
+// Contrato C5: no máximo 3 lotes por caso. A regra mora aqui para valer em todo caminho que pede lote ("Gerar mais ideias" incluído).
+export const LOTES_POR_CASO=3;
+export function queueProduction(data:PilotData){if((data.batches??0)>=LOTES_POR_CASO)throw new Error(`Este caso já recebeu ${LOTES_POR_CASO} lotes. Abra outro caso para novas sugestões.`);data.generation=generation('production');data.phase='generating';data.batches=(data.batches??0)+1;data.events.push({at:new Date().toISOString(),kind:'api_production_requested'})}
 // The claim is saved before talking to the engine. Repeated requests reuse its
 // key, so a lost response or closing the tab cannot start a second paid job.
 export async function syncGeneration(owner:string,run:PilotRun){

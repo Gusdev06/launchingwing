@@ -1,5 +1,5 @@
 import {contentMatchesMime,fileMimes,keySchema,MAX_FILE_BYTES} from '@/lib/workspace-model';
-import {createFile} from '@/lib/workspace-store';
+import {CotaExcedida,createFile} from '@/lib/workspace-store';
 import {pilotIdentity,pilotHeaders} from '@/lib/pilot-http';
 import {rateLimited} from '@/lib/rate-limit';
 async function readBytes(request:Request){
@@ -19,5 +19,5 @@ export async function POST(request:Request){
  let bytes:Uint8Array;try{bytes=await readBytes(request)}catch(error){return Response.json({error:error instanceof Error?error.message:'Envio inválido.'},{status:413,headers:pilotHeaders})}
  if(!contentMatchesMime(bytes,mime))return Response.json({error:'O conteúdo do arquivo não corresponde ao tipo. Use JPG, PNG, WebP, GIF, MP4 ou WebM.'},{status:415,headers:pilotHeaders});
  try{const file=await createFile(owner,chave.data,name,mime,bytes);return Response.json({id:file.id,url:`/api/painel/arquivo/${file.id}`,size:file.size},{status:201,headers:pilotHeaders})}
- catch{console.error('Workspace file save unavailable');return Response.json({error:'Não foi possível guardar o arquivo. Tente novamente.'},{status:503,headers:pilotHeaders})}
+ catch(error){if(error instanceof CotaExcedida)return Response.json({error:error.message},{status:413,headers:pilotHeaders});console.error('Workspace file save unavailable');return Response.json({error:'Não foi possível guardar o arquivo. Tente novamente.'},{status:503,headers:pilotHeaders})}
 }

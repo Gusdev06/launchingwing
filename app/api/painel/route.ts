@@ -1,5 +1,5 @@
 import {keySchema,saveSchema,MAX_DOC_BYTES} from '@/lib/workspace-model';
-import {deleteWorkspace,findWorkspace,saveWorkspace} from '@/lib/workspace-store';
+import {CotaExcedida,deleteWorkspace,findWorkspace,saveWorkspace} from '@/lib/workspace-store';
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
 import {rateLimited} from '@/lib/rate-limit';
 function key(request:Request){const parsed=keySchema.safeParse(new URL(request.url).searchParams.get('chave')||'preview');return parsed.success?parsed.data:null}
@@ -17,7 +17,7 @@ export async function PUT(request:Request){
   const revision=await saveWorkspace(owner,parsed.data.chave,parsed.data.revision,parsed.data.data);
   if(revision===null)return Response.json({error:'Este espaço mudou em outra aba. Recarregue para continuar da versão mais recente.'},{status:409,headers:pilotHeaders});
   return Response.json({revision},{headers:pilotHeaders});
- }catch{console.error('Workspace save unavailable');return Response.json({error:'Não foi possível salvar. Suas edições continuam na tela; tente novamente.'},{status:503,headers:pilotHeaders})}
+ }catch(error){if(error instanceof CotaExcedida)return Response.json({error:error.message},{status:413,headers:pilotHeaders});console.error('Workspace save unavailable');return Response.json({error:'Não foi possível salvar. Suas edições continuam na tela; tente novamente.'},{status:503,headers:pilotHeaders})}
 }
 export async function DELETE(request:Request){
  const owner=await pilotIdentity(request,true);if(!owner)return Response.json({error:'Entre novamente para continuar.'},{status:403,headers:pilotHeaders});

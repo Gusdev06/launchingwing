@@ -3,6 +3,8 @@ import type {WorkspaceData} from '@/app/piloto/frontend/model';
 // Limites do D1: 2.000.000 bytes por linha. O documento fica abaixo de 900 KB porque nenhuma
 // imagem entra nele: todo `data:` vira arquivo em workspace_files antes de gravar.
 export const MAX_DOC_BYTES=900_000,MAX_FILE_BYTES=20*1024*1024,CHUNK_BYTES=900_000;
+// Cota por conta (saúde P1, 08/10): 10 chaves de espaço e 200 MB de arquivos. Conta é grátis; o banco é um só para todos.
+export const COTA_CHAVES=10,COTA_BYTES=200*1024*1024;
 export const keySchema=z.string().regex(/^[a-z0-9-]{1,60}$/,'Chave do espaço inválida.');
 const short=z.string().max(300),long=z.string().max(5000),url=z.string().max(2000).refine(v=>!v.startsWith('data:'),'Imagem ainda não enviada.');
 const format=z.enum(['meme','educativo','amiga']),platform=z.enum(['TikTok','Instagram']);
