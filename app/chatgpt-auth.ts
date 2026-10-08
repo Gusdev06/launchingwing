@@ -4,6 +4,7 @@ import { env } from "cloudflare:workers";
 import { verifyAccessJwt } from "@/lib/access-jwt";
 import { usuarioDaSessao, lembrarUsuario } from "@/lib/login-codigo";
 import { lojaD1, loginProprioLigado, tokenDoCookie } from "@/lib/login-d1";
+import { registrarErro } from "@/lib/registrar-erro";
 
 export type ChatGPTUser = {
   userId: string;
@@ -37,8 +38,8 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
     try {
       const sessao = await usuarioDaSessao(lojaD1(), tokenDoCookie(requestHeaders.get("cookie")));
       if (sessao) return { userId: sessao.userId, email: sessao.email, fullName: null, displayName: sessao.email };
-    } catch {
-      console.error("Sessao do login proprio indisponivel");
+    } catch (error) {
+      registrarErro("sessao_login_proprio", error);
     }
   }
   const access = accessConfig();
@@ -51,8 +52,8 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
       if (user) {
         try {
           await lembrarUsuario(lojaD1(), user.userId, user.email);
-        } catch {
-          console.error("Usuario do Access nao gravado");
+        } catch (error) {
+          registrarErro("usuario_access_gravar", error);
         }
       }
       return user;

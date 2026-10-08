@@ -1,5 +1,6 @@
 import {registerInterest} from '@/lib/waitlist';
 import {rateLimited,clientKey} from '@/lib/rate-limit';
+import {registrarErro} from '@/lib/registrar-erro';
 export async function POST(request:Request){
  const headers={'Cache-Control':'no-store'};const origin=request.headers.get('Origin');
  if(origin&&origin!==new URL(request.url).origin)return Response.json({error:'Envio não permitido.'},{status:403,headers});
@@ -12,5 +13,5 @@ export async function POST(request:Request){
  if(website)return Response.json({ok:true},{headers});
  const email=typeof value==='string'?value.trim().toLowerCase():'';
  if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return Response.json({error:'Digite um e-mail válido para entrar na lista.'},{status:400,headers});
- try{await registerInterest(email);return Response.json({ok:true},{headers})}catch{console.error('Waitlist registration failed');return Response.json({error:'Não conseguimos registrar agora. Seu e-mail continua aqui; tente novamente em instantes.'},{status:503,headers})}
+ try{await registerInterest(email);return Response.json({ok:true},{headers})}catch(error){registrarErro('waitlist_registro',error);return Response.json({error:'Não conseguimos registrar agora. Seu e-mail continua aqui; tente novamente em instantes.'},{status:503,headers})}
 }

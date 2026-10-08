@@ -17,10 +17,15 @@ node scripts/painel/sem-ia-paga-smoke.mjs # prova que nenhuma chamada paga de IA
 node scripts/painel/export-smoke.mjs # pacote ZIP do painel, sem servidor
 node scripts/painel/access-smoke.mjs # JWT do Cloudflare Access, sem servidor
 node scripts/saude/commit-regras.mjs # commit publicado em /api/saude e no deploy, sem servidor
+node scripts/pilot/cota-regras.mjs   # 3 lotes por caso, o 4º é recusado, sem servidor
+node scripts/conf/registrar-erro-regras.mjs # todo catch grava JSON com a causa e sem e-mail, sem servidor
+node scripts/pilot/cota-concorrente-smoke.mjs # cotas por conta e do sistema com envios ao mesmo tempo, sobe o próprio servidor (npm run build antes)
+node scripts/waitlist/smoke.mjs      # lista de espera guarda cada e-mail uma vez, sobe o próprio servidor (npm run build antes)
+npm test                             # o mesmo que npm run test:unit
 npm run db:migrate:local             # tabelas no banco do dev (depois de npm run build)
 ```
 
-Provar: `npx tsc --noEmit && npm run build && npm run lint`, depois os `scripts/*/smoke.mjs` com o dev rodando.
+Provar: `npm run check` (tipos, build, lint e `test:unit`), depois `npm run test:e2e` (sobe os próprios servidores) e os `scripts/*/smoke.mjs` com o dev rodando.
 
 Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver README). O ChatGPT Sites saiu em 28/09/2026. Login por Cloudflare Access (`lib/access-jwt.ts`).
 

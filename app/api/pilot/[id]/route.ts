@@ -3,12 +3,13 @@ import {actionSchema,applyPilotAction} from '@/lib/pilot-model';
 import {preparedPieces} from '@/lib/pilot-cases';
 import {findRun,saveRun} from '@/lib/pilot-store';
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
+import {registrarErro} from '@/lib/registrar-erro';
 type Params={params:Promise<{id:string}>};
 // "Retomar geração" roda o job pago de novo no motor: vale 3 vezes por geração (saúde P1, 08/10).
 const TENTATIVAS_POR_GERACAO=3;
 export async function GET(request:Request,{params}:Params){
  const owner=await pilotIdentity(request);if(!owner)return Response.json({error:'Entre para abrir seu caso.'},{status:401,headers:pilotHeaders});
- try{const run=await findRun(owner,(await params).id);return run?Response.json({run},{headers:pilotHeaders}):Response.json({error:'Caso não encontrado.'},{status:404,headers:pilotHeaders})}catch{console.error('Pilot read unavailable');return Response.json({error:'Não foi possível abrir o caso.'},{status:503,headers:pilotHeaders})}
+ try{const run=await findRun(owner,(await params).id);return run?Response.json({run},{headers:pilotHeaders}):Response.json({error:'Caso não encontrado.'},{status:404,headers:pilotHeaders})}catch(error){registrarErro('pilot_abrir',error);return Response.json({error:'Não foi possível abrir o caso.'},{status:503,headers:pilotHeaders})}
 }
 export async function PATCH(request:Request,{params}:Params){
  const owner=await pilotIdentity(request,true);if(!owner)return Response.json({error:'Entre novamente para salvar.'},{status:403,headers:pilotHeaders});
@@ -41,5 +42,5 @@ export async function PATCH(request:Request,{params}:Params){
   let saved=(await findRun(owner,id))!;
   if(saved.mode==='api'&&(['analyzing','generating'].includes(saved.phase)||(saved.flow==='blitz'&&saved.onboarding?.completedAt))){try{saved=await syncGeneration(owner,saved)}catch{/* The persisted claim can resume during polling. */}}
   return Response.json({run:saved},{headers:pilotHeaders});
- }catch{console.error('Pilot update unavailable');return Response.json({error:'Não foi possível salvar. Suas edições continuam na tela.'},{status:503,headers:pilotHeaders})}
+ }catch(error){registrarErro('pilot_salvar',error);return Response.json({error:'Não foi possível salvar. Suas edições continuam na tela.'},{status:503,headers:pilotHeaders})}
 }
