@@ -22,13 +22,13 @@ jobs:
         run: python3 ~/fila-do-mac/fila.py local ci-launchwing-e2e launchwing --teto 30m -- npm run test:e2e
       - name: provas contra o servidor de dev
         run: |
-          printf 'ALLOW_CHATGPT_HEADERS=1\nOPENAI_API_KEY=chave-falsa-local\nOPENAI_BASE_URL=http://127.0.0.1:8790\n' > .dev.vars
+          printf 'ALLOW_CHATGPT_HEADERS=1\n' > .dev.vars
           mkdir -p outputs
           python3 ~/fila-do-mac/fila.py local ci-launchwing-dev launchwing --teto 30m -- bash -c '
             npm run dev > dev.log 2>&1 & pid=$!
             trap "kill $pid 2>/dev/null; lsof -ti :5173 | xargs kill 2>/dev/null; true" EXIT
             for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:5173/ && break; sleep 2; done
-            node scripts/pilot/smoke.mjs && node scripts/painel/smoke.mjs && node scripts/painel/arte-smoke.mjs'
+            node scripts/pilot/smoke.mjs && node scripts/painel/smoke.mjs && node scripts/painel/sem-ia-paga-smoke.mjs'
       - name: log do servidor se algo falhou
         if: failure()
         run: tail -80 dev.log || true
