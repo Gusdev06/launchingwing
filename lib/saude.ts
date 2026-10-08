@@ -27,7 +27,7 @@ export async function sentinela(agora=new Date().toISOString()){
 export async function resumoDaSaude(){
  const r=await db().prepare('SELECT chave,valor,atualizado FROM saude').all<{chave:string;valor:string;atualizado:string}>();
  const m=new Map(r.results.map(x=>[x.chave,{v:JSON.parse(x.valor),em:x.atualizado}]));
- const motor=m.get('motor'),h=m.get('motor_health')?.v as Record<string,any>|undefined;
+ const motor=m.get('motor'),h=m.get('motor_health')?.v as {acervo?:unknown;lotes24h?:unknown;canario?:Canario|null}|undefined;
  return {site:'ok',conferidoEm:motor?.em??null,motor:motor?{noAr:!motor.v.fora,falhasSeguidas:motor.v.falhas,desde:motor.v.desde}:null,
   acervo:h?.acervo??null,lotes24h:h?.lotes24h??null,canario:h?.canario?{em:h.canario.em,ok:h.canario.ok,motivo:h.canario.motivo}:null};
 }
