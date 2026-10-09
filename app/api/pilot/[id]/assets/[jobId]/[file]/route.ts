@@ -2,6 +2,8 @@ import {findRun} from '@/lib/pilot-store';
 import {engineFetch} from '@/lib/pilot-engine';
 import {pilotIdentity,pilotHeaders} from '@/lib/pilot-http';
 import {lerMidia,guardarMidia} from '@/lib/midia';
+// Mídia de peça não muda depois de gerada (cada lote tem jobId novo): o navegador guarda por 1 dia, só para a própria pessoa (private).
+const midiaHeaders={'Cache-Control':'private, max-age=86400, immutable'};
 export async function GET(request:Request,{params}:{params:Promise<{id:string;jobId:string;file:string}>}){
  const owner=await pilotIdentity(request);if(!owner)return new Response(null,{status:401,headers:pilotHeaders});
  const {id,jobId,file}=await params;
@@ -10,13 +12,13 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;jo
   if(!run||!run.pieces.some(p=>p.assets.some(a=>a.url===url||a.poster===url)))return new Response(null,{status:404,headers:pilotHeaders});
   // Guardado na Cloudflare: abre mesmo com o Mac desligado e depois que o motor apagou o pedido.
   const guardado=await lerMidia(jobId,file);
-  if(guardado)return new Response(guardado.corpo,{headers:{...pilotHeaders,'Content-Type':guardado.tipo,'X-Content-Type-Options':'nosniff','Content-Length':String(guardado.corpo.byteLength)}});
+  if(guardado)return new Response(guardado.corpo,{headers:{...midiaHeaders,'Content-Type':guardado.tipo,'X-Content-Type-Options':'nosniff','Content-Length':String(guardado.corpo.byteLength)}});
   // Ainda não guardado (a rotina guarda a cada 2 minutos): busca no motor e guarda agora.
   await guardarMidia(jobId,[file]).catch(()=>0);
   const depois=await lerMidia(jobId,file);
-  if(depois)return new Response(depois.corpo,{headers:{...pilotHeaders,'Content-Type':depois.tipo,'X-Content-Type-Options':'nosniff','Content-Length':String(depois.corpo.byteLength)}});
+  if(depois)return new Response(depois.corpo,{headers:{...midiaHeaders,'Content-Type':depois.tipo,'X-Content-Type-Options':'nosniff','Content-Length':String(depois.corpo.byteLength)}});
   const upstream=await engineFetch(`/jobs/${jobId}/assets/${file}`);
-  return new Response(upstream.body,{headers:{...pilotHeaders,'Content-Type':upstream.headers.get('Content-Type')||'application/octet-stream','X-Content-Type-Options':'nosniff',...(upstream.headers.get('Content-Length')?{'Content-Length':upstream.headers.get('Content-Length')!}:{})}});
+  return new Response(upstream.body,{headers:{...midiaHeaders,'Content-Type':upstream.headers.get('Content-Type')||'application/octet-stream','X-Content-Type-Options':'nosniff',...(upstream.headers.get('Content-Length')?{'Content-Length':upstream.headers.get('Content-Length')!}:{})}});
  }catch(error){
   // O motor apaga pedidos com mais de 30 dias: arquivo que ele não tem mais é 404, não "gerador desconectado".
   if((error as {status?:number}).status===404)return Response.json({error:'Este arquivo não está mais guardado no gerador.'},{status:404,headers:pilotHeaders});

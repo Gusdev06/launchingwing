@@ -67,8 +67,10 @@ try{
  marcas.push('rotina_trouxe_as_pecas_sem_a_tela');
  // imagens guardadas: abrem com o motor sem os arquivos
  arquivosNoMotor=false;
- for(const p of pecas)for(const a of p.assets){const r=await fetch(base+a.url,{headers:{Cookie:cookie}});assert.equal(r.status,200,`${a.url} não abriu sem o motor`);assert.match(await r.text(),/^arquivo /)}
- marcas.push('imagens_abrem_sem_o_motor');
+ for(const p of pecas)for(const a of p.assets){const r=await fetch(base+a.url,{headers:{Cookie:cookie}});assert.equal(r.status,200,`${a.url} não abriu sem o motor`);assert.match(await r.text(),/^arquivo /);const cc=r.headers.get('cache-control')??'';assert.ok(/\bprivate\b/.test(cc)&&/max-age=86400/.test(cc),`${a.url} sem cache do navegador (PERF-05): ${cc}`)}
+ // a mídia fica no cache do navegador, o JSON do caso nunca
+ const ccJson=(await fetch(`${base}/api/pilot/${run.id}`,{headers:{Cookie:cookie}})).headers.get('cache-control');assert.match(ccJson??'',/no-store/,`o JSON do caso perdeu o no-store: ${ccJson}`);
+ marcas.push('imagens_abrem_sem_o_motor');marcas.push('midia_em_cache_json_no_store');
  // contrato C2 (VER-02, 08/10): outra conta não vê nem muda o que é de A. Segundo login, pedidos pelos ids de A, 404 em todos e o caso de A igual.
  const emailB=`esqueleto-b-${randomUUID().slice(0,8)}@exemplo.com`;
  assert.equal((await pedir('/api/entrar/codigo',{method:'POST',corpo:{email:emailB}})).status,200);
@@ -80,6 +82,7 @@ try{
  const revisaoAntes=run.revision,pedidosDeB=[`GET /api/pilot/${run.id}`,`PATCH /api/pilot/${run.id}`,`GET ${urlArquivoA}`,`GET ${pecas[0].assets[0].url}`];
  const deB=[await pedir(`/api/pilot/${run.id}`,{cookie:cookieB}),await pedir(`/api/pilot/${run.id}`,{method:'PATCH',cookie:cookieB,corpo:{action:'swipe',revision:run.revision,pieceId:pecas[0].id,direction:'right',seconds:1}}),await pedir(urlArquivoA,{cookie:cookieB}),await pedir(pecas[0].assets[0].url,{cookie:cookieB})];
  assert.deepEqual(deB.map(r=>r.status),[404,404,404,404],'a conta B alcançou dado de A: '+pedidosDeB.map((p,i)=>`${p} -> ${deB[i].status}`).join(', '));
+ { const r=await fetch(base+pecas[0].assets[0].url,{headers:{Cookie:cookieB}});assert.equal(r.status,404);assert.match(r.headers.get('cache-control')??'',/no-store/,'o 404 da mídia de outra conta não pode ir para o cache') }
  run=(await pedir(`/api/pilot/${run.id}`,{cookie})).dados.run;assert.equal(run.revision,revisaoAntes,'o PATCH de B mudou o caso de A');assert.ok(run.pieces.every(p=>p.status==='pending'),'B aprovou peça de A');
  assert.equal((await pedir(urlArquivoA,{cookie})).status,200,'o arquivo de A continua abrindo para A');marcas.push('outra_conta_nao_ve_nem_muda');
  // aprovar e a rotina postar
