@@ -11,7 +11,7 @@
     "build": "vinext build",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --max-warnings 64",
-    "test:unit": "node scripts/painel/access-smoke.mjs && node scripts/painel/export-smoke.mjs && node scripts/pilot/export-smoke.mjs && node scripts/pilot/lote-smoke.mjs && node scripts/pilot/desfazer-regras.mjs && node scripts/pilot/galeria-postagem-regras.mjs && node scripts/login/regras-smoke.mjs && node scripts/saude/regras.mjs && node scripts/pilot/cota-regras.mjs && node scripts/saude/commit-regras.mjs && node scripts/conf/registrar-erro-regras.mjs",
+    "test:unit": "node scripts/painel/access-smoke.mjs && node scripts/painel/export-smoke.mjs && node scripts/pilot/export-smoke.mjs && node scripts/pilot/lote-smoke.mjs && node scripts/pilot/desfazer-regras.mjs && node scripts/pilot/galeria-postagem-regras.mjs && node scripts/login/regras-smoke.mjs && node scripts/saude/regras.mjs && node scripts/pilot/cota-regras.mjs && node scripts/saude/commit-regras.mjs && node scripts/conf/registrar-erro-regras.mjs && node scripts/docs/regras.mjs",
     "test:e2e": "node scripts/login/rotas-smoke.mjs && node scripts/pilot/esqueleto-smoke.mjs && node scripts/pilot/cota-concorrente-smoke.mjs && node scripts/waitlist/smoke.mjs",
     "test": "npm run test:unit",
     "check": "tsc --noEmit && npm run build && npm run lint && npm run test:unit",

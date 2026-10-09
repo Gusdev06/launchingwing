@@ -1,9 +1,40 @@
-# Copie para .dev.vars para o dev local. Em producao, as mesmas chaves vao nas variaveis do Sites.
-# Dev local: o login de teste do Sites (cabeçalhos do ChatGPT) só vale com esta linha. Nunca em produção.
-ALLOW_CHATGPT_HEADERS=1
-# Login fora do ChatGPT Sites (Cloudflare Access). Vazio no dev: o login local de teste continua valendo.
+# Copie para .dev.vars no dev local (o arquivo real fica fora do git). Em producao, as mesmas chaves entram como secrets do Worker.
+# Toda variavel que lib/, app/ e worker/ leem esta aqui, com valor vazio. Prova: node scripts/docs/regras.mjs.
+
+# Login proprio por codigo no e-mail (app/chatgpt-auth.ts le primeiro esta sessao). 1 liga.
+LOGIN_PROPRIO=
+# Segredo que assina a sessao do login proprio. Qualquer texto longo e aleatorio.
+LOGIN_SEGREDO=
+# Remetente do e-mail com o codigo (precisa de dominio verificado na Resend).
+LOGIN_EMAIL_DE=
+# Chave da Resend para enviar o codigo. Sem ela, o codigo nao sai por e-mail.
+RESEND_API_KEY=
+# 1 so no computador local: o codigo aparece no registro do servidor em vez de ir por e-mail (scripts/login/rotas-smoke.mjs).
+LOGIN_EMAIL_TESTE=
+
+# Cloudflare Access (segunda opcao de identidade, lib/access-jwt.ts). Vazios, o Access e ignorado.
 CF_ACCESS_TEAM_DOMAIN=
 CF_ACCESS_AUD=
-# Gerador privado do piloto (fora deste repositorio)
+# 1 so no dev local: aceita os cabecalhos de identidade do ChatGPT (login de teste em /signin-with-chatgpt). Nunca em producao.
+ALLOW_CHATGPT_HEADERS=
+
+# Motor privado que gera as pecas (fora deste repositorio).
 LAUNCHWING_ENGINE_URL=
 LAUNCHWING_ENGINE_TOKEN=
+
+# Chave interna da API de fundo verde (cabecalho x-chave). Sem ela, a rota recusa tudo.
+FUNDO_VERDE_CHAVE=
+# Bancos de foto da busca de fundo verde. As URLs base so mudam para apontar a um servidor falso na prova.
+PEXELS_API_KEY=
+PEXELS_BASE_URL=
+PIXABAY_API_KEY=
+PIXABAY_BASE_URL=
+
+# Aviso no Telegram quando o motor cai ou volta (lib/telegram.ts). Vazios, nao avisa.
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# So para provas: prazo curto de desfazer (lib/rotina.ts) e cotas de bytes do painel (lib/workspace-store.ts).
+PRAZO_DESFAZER_SEGUNDOS=
+COTA_BYTES_CONTA=
+COTA_BYTES_SISTEMA=
