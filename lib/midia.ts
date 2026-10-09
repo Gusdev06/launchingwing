@@ -30,3 +30,10 @@ export function loteDaUrl(url:string){const [,,,,pasta,jobId,file]=url.split('/'
 export function arquivosDoLote(pieces:{assets:{url:string;poster?:string}[]}[],jobId:string){
  return pieces.flatMap(p=>p.assets.flatMap(a=>[a.url,a.poster])).flatMap(u=>{const l=u?loteDaUrl(u):null;return l?.jobId===jobId?[l.file]:[]});
 }
+// Apaga tudo de um lote no KV (exclusão da conta, lib/apagar-conta.ts). Devolve quantas chaves saíram.
+export async function apagarMidia(jobId:string){
+ const loja=kv();if(!loja)return 0;
+ let apagadas=0,cursor:string|undefined;
+ do{const r=await loja.list({prefix:`${jobId}/`,cursor});for(const k of r.keys){await loja.delete(k.name);apagadas++}cursor=r.list_complete?undefined:r.cursor}while(cursor);
+ return apagadas;
+}

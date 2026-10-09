@@ -16,6 +16,8 @@ const prazoDesfazer=()=>{const s=Number((env as unknown as {PRAZO_DESFAZER_SEGUN
 export async function rotina(){
  // Sentinela do motor e do lote de teste (lib/saude.ts, 08/10). Erro aqui nunca para o resto da rotina.
  try{await sentinela()}catch(e){console.error(JSON.stringify({evento:'sentinela_falhou',erro:e instanceof Error?e.message:String(e)}))}
+ // Sessões e códigos de login vencidos saem a cada rodada (DAD-04): expira é em milissegundos, como em lib/login-codigo.ts.
+ try{for(const t of ['sessoes','login_codigos'])await db().prepare(`DELETE FROM ${t} WHERE expira<?`).bind(Date.now()).run()}catch(e){console.error(JSON.stringify({evento:'limpeza_vencidos_falhou',erro:e instanceof Error?e.message:String(e)}))}
  const desde=new Date(Date.now()-3*86400000).toISOString();
  const {results}=await db().prepare(`SELECT id,owner_id FROM pilot_runs WHERE updated_at>? AND (json_extract(data,'$.generation.status') IN ('queued','running') OR EXISTS (SELECT 1 FROM json_each(data,'$.pieces') WHERE json_extract(value,'$.status')='approved' AND json_extract(value,'$.postagem') IS NULL) OR (json_extract(data,'$.generation.kind')='production' AND json_extract(data,'$.generation.status')='succeeded' AND json_extract(data,'$.midiaGuardada') IS NOT json_extract(data,'$.generation.jobId'))) ORDER BY updated_at DESC LIMIT 25`).bind(desde).all<{id:string;owner_id:string}>();
  for(const {id,owner_id:dono} of results){
