@@ -3,7 +3,7 @@
 // 2. Lotes prontos: guarda imagens e vídeos na Cloudflare (lib/midia.ts).
 // 3. Peças aprovadas: postagem. No esqueleto ela é simulada (sem contas das redes ainda): marca "postada" com a hora.
 import {env} from 'cloudflare:workers';
-import {runData as dados,syncGeneration} from './pilot-engine';
+import {runData as dados,syncGeneration,marcarFalha,PRAZO_GERACAO_MS} from './pilot-engine';
 import {findRun,saveRun} from './pilot-store';
 import {guardarMidia,arquivosDoLote,loteDaUrl} from './midia';
 import {postarAprovadas,PRAZO_DESFAZER_MS} from './postagem';
@@ -22,7 +22,9 @@ export async function rotina(){
   try{
    let run=await findRun(dono,id);if(!run)continue;
    const g=run.generation;
-   if(g&&(g.status==='queued'||g.status==='running'||(g.status==='succeeded'&&!g.jobId)))run=await syncGeneration(dono,run);
+   // Geração parada além do prazo vira falha sem perguntar ao motor (saúde P9): o cliente ganha o botão de tentar de novo.
+   if(g&&(g.status==='queued'||g.status==='running')&&Date.now()-Date.parse(run.updatedAt)>PRAZO_GERACAO_MS){const parado=dados(run);marcarFalha(parado,'A geração demorou mais que o esperado. Tente de novo.');if(await saveRun(dono,id,run.revision,parado))run=(await findRun(dono,id))!}
+   else if(g&&(g.status==='queued'||g.status==='running'||(g.status==='succeeded'&&!g.jobId)))run=await syncGeneration(dono,run);
    const pronto=run.generation;
    if(pronto?.kind==='production'&&pronto.status==='succeeded'&&pronto.jobId&&run.midiaGuardada!==pronto.jobId){
     // Todos os lotes do caso: se dois terminaram entre uma passada e outra, o anterior também fica guardado.

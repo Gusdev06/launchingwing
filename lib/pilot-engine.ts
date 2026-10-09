@@ -23,6 +23,9 @@ const analysisSchema=z.object({context:contextSchema,facts:z.array(z.string().ma
 export function mergeGeneratedPieces(existing:PilotPiece[],incoming:PilotPiece[]){const seen=new Set(existing.map(p=>p.id));return [...existing,...incoming.filter(p=>!seen.has(p.id))]}
 // Contrato C5: no máximo 3 lotes por caso. A regra mora aqui para valer em todo caminho que pede lote ("Gerar mais ideias" incluído).
 export const LOTES_POR_CASO=3;
+// Geração parada há mais tempo que isto vira falha na rotina, sem perguntar ao motor (saúde P9, 08/10): o motor roda num Mac e pode perder o pedido.
+export const PRAZO_GERACAO_MS=2*3600000;
+export function marcarFalha(data:PilotData,mensagem:string){data.phase='failed';data.generation={...data.generation!,status:'failed',error:mensagem,message:mensagem}}
 export function queueProduction(data:PilotData){if((data.batches??0)>=LOTES_POR_CASO)throw new Error(`Este caso já recebeu ${LOTES_POR_CASO} lotes. Abra outro caso para novas sugestões.`);data.generation=generation('production');data.phase='generating';data.batches=(data.batches??0)+1;data.events.push({at:new Date().toISOString(),kind:'api_production_requested'})}
 // The claim is saved before talking to the engine. Repeated requests reuse its
 // key, so a lost response or closing the tab cannot start a second paid job.
@@ -33,8 +36,16 @@ export async function syncGeneration(owner:string,run:PilotRun){
  }
  let jobId=current.jobId;
  if(!jobId){const input=current.kind==='analysis'?{url:run.url,...(run.flow==='blitz'?{prefetch:true}:{}),...(run.descriptionInput?{description:run.descriptionInput}:{})}:{url:run.url,context:run.context,facts:run.facts,sources:run.sources,...(run.flow==='blitz'?{analysisJobId:run.analysisJobId,preferences:{...run.onboarding?.answers,...historicoDoDono(run.pieces)}}:{})};const body=await(await engineFetch('/jobs',{method:'POST',body:JSON.stringify({key:current.key,kind:current.kind,input})})).json();jobId=z.object({id:z.string().uuid()}).parse(body).id}
- if(current.retryRequested)await engineFetch(`/jobs/${jobId}/retry`,{method:'POST',body:'{}'});
- const job=jobSchema.parse(await(await engineFetch(`/jobs/${jobId}`)).json());
+ if(current.retryRequested&&current.jobId)await engineFetch(`/jobs/${jobId}/retry`,{method:'POST',body:'{}'});
+ let job:z.infer<typeof jobSchema>;
+ try{job=jobSchema.parse(await(await engineFetch(`/jobs/${jobId}`)).json())}
+ catch(erro){
+  // O motor não tem mais o job (404): o caso vira falha e "tentar de novo" abre um job novo, em vez de ficar "gerando" para sempre (saúde P9).
+  if((erro as {status?:number}).status!==404)throw erro;
+  console.log(JSON.stringify({evento:'lote',caso:run.id,job:jobId,tipo:current.kind,de:current.status,para:'failed',etapa:'perdido'}));
+  const perdido=runData(run);marcarFalha(perdido,'O gerador não encontrou mais esta geração. Tente de novo.');perdido.generation={...perdido.generation!,jobId:undefined,retryRequested:undefined};
+  await saveRun(owner,run.id,run.revision,perdido);return (await findRun(owner,run.id))!;
+ }
  if(job.kind!==current.kind)throw new Error('A geração não corresponde a este caso.');
  const next=runData(run);next.generation={...current,jobId,status:job.status,stage:job.stage,message:job.message,progress:job.progress,error:job.error||undefined,retryRequested:undefined};
  // Rastro do lote (08/10): o mesmo job aparece no registro do motor ([producao] <job>), então dá para seguir do site ao motor.
