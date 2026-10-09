@@ -1,7 +1,7 @@
 // Prova de que uma conta some inteira (DAD-04, LGPD) e de que sessões e códigos vencidos saem na rotina.
 // Sobe um servidor próprio sobre dist/ com um D1 e um KV temporários (precisa de npm run build antes). Duas contas pelo
 // código de login, cada uma com caso, espaço, arquivo, art_job, mídia no KV e sessão. Apaga A por POST /api/interno/apagar-conta
-// (APAGAR_CONTA_CHAVE no cabeçalho x-chave; a do fundo verde não serve): as 8 tabelas e o KV de A ficam em 0, os números de B não mudam, o cookie antigo de A
+// (APAGAR_CONTA_CHAVE no cabeçalho x-chave; a do fundo verde não serve): as 9 tabelas (com rate_limits) e o KV de A ficam em 0, os números de B não mudam, o cookie antigo de A
 // recebe 401. Sessão e código vencidos (gravados por SQL) somem depois da rotina agendada e os válidos ficam. Nada toca produção.
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
@@ -44,18 +44,21 @@ try{
   const [{id}]=sql(`SELECT id FROM usuarios WHERE email='${email}'`);
   const agora=new Date().toISOString(),dados=JSON.stringify({pieces:[{assets:[{url:`/api/pilot/${caso.dados.run.id}/assets/${job}/meme.mp4`,poster:`/api/pilot/${caso.dados.run.id}/assets/${job}/meme-capa.jpg`}]}]});
   sql(`INSERT INTO workspaces (owner_id,key,data,revision,created_at,updated_at) VALUES ('${id}','${nome}','{}',0,'${agora}','${agora}'); INSERT INTO art_jobs (id,owner_id,workspace_key,runpod_id,status,prompt,width,height,seed,created_at,updated_at) VALUES ('${randomUUID()}','${id}','${nome}','r','erro','p',1,1,1,'${agora}','${agora}'); INSERT INTO pilot_runs (id,owner_id,data,revision,created_at,updated_at) VALUES ('${randomUUID()}','${id}','${dados.replace(/'/g,"''")}',0,'${agora}','${agora}')`);
+  sql(`INSERT INTO rate_limits (key,window_start,count) VALUES ('painel:${id}',${Date.now()},1)`);
   kvGravar(`${job}/meme.mp4`,'video');kvGravar(`${job}/meme-capa.jpg`,'capa');
-  return {email,cookie,id,job};
+  // Os pedaços contam pelos ids guardados agora: depois de apagar, workspace_files não serve mais de ponte.
+  const arquivos=sql(`SELECT id FROM workspace_files WHERE owner_id='${id}'`).map(r=>`'${r.id}'`).join(',');
+  return {email,cookie,id,job,arquivos};
  };
  const A=await conta('a'),B=await conta('b');marcas.push('duas_contas_completas');
  const contagem=c=>{
-  const [r]=sql(`SELECT (SELECT COUNT(*) FROM usuarios WHERE id='${c.id}') AS usuarios,(SELECT COUNT(*) FROM sessoes WHERE user_id='${c.id}') AS sessoes,(SELECT COUNT(*) FROM login_codigos WHERE email='${c.email}') AS login_codigos,(SELECT COUNT(*) FROM pilot_runs WHERE owner_id='${c.id}') AS pilot_runs,(SELECT COUNT(*) FROM workspaces WHERE owner_id='${c.id}') AS workspaces,(SELECT COUNT(*) FROM workspace_files WHERE owner_id='${c.id}') AS workspace_files,(SELECT COUNT(*) FROM workspace_file_chunks WHERE file_id IN (SELECT id FROM workspace_files WHERE owner_id='${c.id}')) AS workspace_file_chunks,(SELECT COUNT(*) FROM art_jobs WHERE owner_id='${c.id}') AS art_jobs`);
+  const [r]=sql(`SELECT (SELECT COUNT(*) FROM usuarios WHERE id='${c.id}') AS usuarios,(SELECT COUNT(*) FROM sessoes WHERE user_id='${c.id}') AS sessoes,(SELECT COUNT(*) FROM login_codigos WHERE email='${c.email}') AS login_codigos,(SELECT COUNT(*) FROM pilot_runs WHERE owner_id='${c.id}') AS pilot_runs,(SELECT COUNT(*) FROM workspaces WHERE owner_id='${c.id}') AS workspaces,(SELECT COUNT(*) FROM workspace_files WHERE owner_id='${c.id}') AS workspace_files,(SELECT COUNT(*) FROM workspace_file_chunks WHERE file_id IN (${c.arquivos})) AS workspace_file_chunks,(SELECT COUNT(*) FROM rate_limits WHERE key IN ('entrar-email:${c.email}','painel:${c.id}','arquivo:${c.id}')) AS rate_limits,(SELECT COUNT(*) FROM art_jobs WHERE owner_id='${c.id}') AS art_jobs`);
   return {...r,midia:kvListar(`${c.job}/`).length};
  };
  // Código de login pendente para cada conta, para provar que ele também sai.
  for(const c of [A,B])assert.equal((await pedir('/api/entrar/codigo',{method:'POST',corpo:{email:c.email}})).status,200);
  const antesA=contagem(A),antesB=contagem(B);
- const cheio={usuarios:1,sessoes:1,login_codigos:1,pilot_runs:2,workspaces:1,workspace_files:1,workspace_file_chunks:1,art_jobs:1,midia:2};
+ const cheio={usuarios:1,sessoes:1,login_codigos:1,pilot_runs:2,workspaces:1,workspace_files:1,workspace_file_chunks:1,art_jobs:1,rate_limits:3,midia:2};
  assert.deepEqual(antesA,cheio,'a conta A não ficou completa: '+JSON.stringify(antesA));assert.deepEqual(antesB,cheio,'a conta B não ficou completa: '+JSON.stringify(antesB));
  // sem a chave interna, nada acontece
  assert.equal((await pedir('/api/interno/apagar-conta',{method:'POST',corpo:{email:A.email}})).status,401,'apagar conta sem chave precisa dar 401');
@@ -75,15 +78,17 @@ try{
  assert.equal((await pedir('/api/interno/apagar-conta',{method:'POST',corpo:{email:A.email},cabecalhos:{'x-chave':chave}})).status,404,'apagar de novo precisa dar 404');marcas.push('segunda_vez_404');
  // sessão e código vencidos somem na rotina, os válidos ficam
  const vencido=Date.now()-60000;
- sql(`INSERT INTO sessoes (hash,user_id,email,expira) VALUES ('vencida-${randomUUID()}','${B.id}','${B.email}',${vencido}); INSERT INTO login_codigos (email,hash,expira,tentativas) VALUES ('vencido@exemplo.com','h',${vencido},0)`);
- const vencidos=()=>sql(`SELECT (SELECT COUNT(*) FROM sessoes WHERE expira<${Date.now()}) AS sessoes_vencidas,(SELECT COUNT(*) FROM login_codigos WHERE expira<${Date.now()}) AS codigos_vencidos,(SELECT COUNT(*) FROM sessoes WHERE user_id='${B.id}') AS sessoes_b,(SELECT COUNT(*) FROM login_codigos WHERE email='${B.email}') AS codigos_b`)[0];
- assert.deepEqual(vencidos(),{sessoes_vencidas:1,codigos_vencidos:1,sessoes_b:2,codigos_b:1});
+ sql(`INSERT INTO sessoes (hash,user_id,email,expira) VALUES ('vencida-${randomUUID()}','${B.id}','${B.email}',${vencido}); INSERT INTO login_codigos (email,hash,expira,tentativas) VALUES ('vencido@exemplo.com','h',${vencido},0); INSERT INTO rate_limits (key,window_start,count) VALUES ('entrar:203.0.113.9',${Date.now()-2*86400000},1)`);
+ const vencidos=()=>sql(`SELECT (SELECT COUNT(*) FROM sessoes WHERE expira<${Date.now()}) AS sessoes_vencidas,(SELECT COUNT(*) FROM login_codigos WHERE expira<${Date.now()}) AS codigos_vencidos,(SELECT COUNT(*) FROM sessoes WHERE user_id='${B.id}') AS sessoes_b,(SELECT COUNT(*) FROM login_codigos WHERE email='${B.email}') AS codigos_b,(SELECT COUNT(*) FROM rate_limits WHERE key='entrar:203.0.113.9') AS limite_velho,(SELECT COUNT(*) FROM rate_limits WHERE key='painel:${B.id}') AS limite_b`)[0];
+ assert.deepEqual(vencidos(),{sessoes_vencidas:1,codigos_vencidos:1,sessoes_b:2,codigos_b:1,limite_velho:1,limite_b:1});
  await rotina();
  const depois=vencidos();
  assert.equal(depois.sessoes_vencidas,0,'a sessão vencida continua no banco depois da rotina');
  assert.equal(depois.codigos_vencidos,0,'o código vencido continua no banco depois da rotina');
  assert.equal(depois.sessoes_b,1,'a rotina apagou a sessão válida de B');
  assert.equal(depois.codigos_b,1,'a rotina apagou o código válido de B');
+ assert.equal(depois.limite_velho,0,'o limite de taxa de 2 dias atrás continua no banco depois da rotina');
+ assert.equal(depois.limite_b,1,'a rotina apagou o limite de taxa da janela atual');
  assert.equal((await pedir('/api/pilot',{cookie:B.cookie})).status,200);marcas.push('vencidos_somem_na_rotina_validos_ficam');
  console.log('apagar-conta-smoke ok: '+marcas.join(', '));
 }catch(erro){console.error(saida.slice(-3000));throw erro}

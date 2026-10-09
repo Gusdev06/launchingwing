@@ -4,7 +4,7 @@ import {env} from 'cloudflare:workers';
 import {normalizarEmail} from './login-codigo';
 import {apagarMidia,loteDaUrl} from './midia';
 const db=()=>(env as unknown as {DB:D1Database}).DB;
-export const TABELAS=['workspace_file_chunks','workspace_files','art_jobs','workspaces','pilot_runs','sessoes','login_codigos','usuarios'] as const;
+export const TABELAS=['workspace_file_chunks','workspace_files','art_jobs','workspaces','pilot_runs','sessoes','login_codigos','rate_limits','usuarios'] as const;
 export type Apagados=Record<(typeof TABELAS)[number]|'midia',number>;
 
 // Lotes das peças da pessoa: a mídia fica no KV por jobId (lib/midia.ts), lido dos endereços das peças e da geração em curso.
@@ -32,9 +32,11 @@ export async function apagarConta(emailBruto:string):Promise<Apagados|null>{
   pilot_runs:'DELETE FROM pilot_runs WHERE owner_id=?',
   sessoes:'DELETE FROM sessoes WHERE user_id=?',
   login_codigos:'DELETE FROM login_codigos WHERE email=?',
+  // Limites de taxa com o e-mail ou o id da pessoa na chave (app/api/entrar/codigo, app/api/painel, app/api/painel/arquivo). Os por IP saem na rotina.
+  rate_limits:"DELETE FROM rate_limits WHERE key IN ('entrar-email:'||?2,'painel:'||?1,'arquivo:'||?1)",
   usuarios:'DELETE FROM usuarios WHERE id=?',
  };
- const resultados=await db().batch(TABELAS.map(t=>db().prepare(sqls[t]).bind(t==='login_codigos'?email:dono.id)));
+ const resultados=await db().batch(TABELAS.map(t=>t==='rate_limits'?db().prepare(sqls[t]).bind(dono.id,email):db().prepare(sqls[t]).bind(t==='login_codigos'?email:dono.id)));
  const apagados={midia} as Apagados;
  TABELAS.forEach((t,i)=>{apagados[t]=resultados[i].meta.changes});
  return apagados;

@@ -2,6 +2,8 @@ import {env} from 'cloudflare:workers';
 import {registrarErro} from './registrar-erro';
 // Limite de taxa por chave (IP ou usuário) numa tabela do D1, sem KV. Janela fixa: a primeira chamada
 // abre a janela, as seguintes contam até o teto. Se o banco falhar, deixa passar e registra.
+// Janela mais longa em uso (pilot-global, entrar-global): a rotina apaga linhas mais velhas que ela (lib/rotina.ts).
+export const JANELA_MAIS_LONGA_MS=86400000;
 export async function rateLimited(key:string,limit:number,windowMs:number):Promise<boolean>{
  const db=(env as unknown as {DB?:D1Database}).DB;if(!db)return false;
  const now=Date.now(),cutoff=now-windowMs;

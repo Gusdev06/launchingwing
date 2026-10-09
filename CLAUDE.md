@@ -24,7 +24,7 @@ node scripts/pilot/cota-regras.mjs   # 3 lotes por caso, o 4º é recusado, sem 
 node scripts/conf/registrar-erro-regras.mjs # todo catch grava JSON com a causa e sem e-mail, sem servidor
 node scripts/pilot/cota-concorrente-smoke.mjs # cotas por conta e do sistema com envios ao mesmo tempo, sobe o próprio servidor (npm run build antes)
 node scripts/waitlist/smoke.mjs      # lista de espera guarda cada e-mail uma vez, sobe o próprio servidor (npm run build antes)
-node scripts/login/apagar-conta-smoke.mjs # POST /api/interno/apagar-conta (x-chave = APAGAR_CONTA_CHAVE, corpo {email}, 404 sem a variável) zera as 8 tabelas e o KV da conta, e a rotina apaga sessões e códigos vencidos, sobe o próprio servidor (npm run build antes)
+node scripts/login/apagar-conta-smoke.mjs # POST /api/interno/apagar-conta (x-chave = APAGAR_CONTA_CHAVE, corpo {email}, 404 sem a variável) zera as 9 tabelas (com rate_limits) e o KV da conta, e a rotina apaga sessões e códigos vencidos, sobe o próprio servidor (npm run build antes)
 npm test                             # o mesmo que npm run test:unit
 npm run db:migrate:local             # tabelas no banco do dev (depois de npm run build)
 ```
