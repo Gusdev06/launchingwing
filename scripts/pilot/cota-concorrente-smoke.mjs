@@ -7,10 +7,13 @@
 //      mesmo tempo da mesma conta dão exatamente 4x201 e 2x413, o arquivo que passa do teto do sistema recebe 413 "sem espaço" (saúde P6)
 //      e o que passa da cota da conta recebe 413 "Sua conta chegou";
 //   5. o 301º pedido de código por e-mail do dia, de IP e e-mail novos, recebe 429 e nenhum e-mail sai.
+//   6. (saúde P9, roda entre 1 e 2, enquanto ainda há cota) job que o motor perdeu (404) vira falha e "tentar de novo" abre um job
+//      novo; caso em andamento com updated_at de 3 horas atrás vira falha pela rotina agendada, sem o motor ser consultado.
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
 import {createServer} from 'node:http';
-import {mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {mkdtempSync,readFileSync,readdirSync,rmSync,writeFileSync} from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
@@ -25,7 +28,8 @@ assert.equal(migrou.status,0,'migrações no banco temporário:\n'+(migrou.stdou
 const config=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
 writeFileSync('dist/wrangler.cota.json',JSON.stringify({...config,main:'server/index.js',assets:{...config.assets,directory:'client'},d1_databases:config.d1_databases.map(d=>({...d,migrations_dir:'../migrations'}))}));
 // Motor falso: /health demora 300 ms (alarga a janela entre contar e gravar), todo job termina em falha, /retry é contado.
-const motor={health:0,jobs:0,retries:0};
+// modo 'perdido': GET /jobs/:id responde 404; modo 'andando': responde running; consultas conta os GET /jobs/:id.
+const motor={health:0,jobs:0,retries:0,consultas:0,modo:'falha'};
 const motorFalso=createServer((req,res)=>{
  const responder=(corpo,ms=0)=>setTimeout(()=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(corpo))},ms);
  if(req.headers.authorization!=='Bearer prova'){res.statusCode=401;return responder({error:'token'})}
@@ -33,7 +37,8 @@ const motorFalso=createServer((req,res)=>{
  if(req.method==='GET'&&url.pathname==='/health'){motor.health++;return responder({ready:true},300)}
  if(req.method==='POST'&&url.pathname==='/jobs'){motor.jobs++;let corpo='';req.on('data',d=>{corpo+=d});req.on('end',()=>{const {kind}=JSON.parse(corpo);motor.kind=kind;responder({id:randomUUID()})});return}
  const retry=url.pathname.match(/^\/jobs\/([0-9a-f-]{36})\/retry$/);if(req.method==='POST'&&retry){motor.retries++;return responder({})}
- const job=url.pathname.match(/^\/jobs\/([0-9a-f-]{36})$/);if(req.method==='GET'&&job)return responder({id:job[1],kind:motor.kind??'analysis',status:'failed',stage:'erro',message:'O motor falso sempre falha.',progress:0,error:'Prova: falha de propósito.',result:null});
+ const job=url.pathname.match(/^\/jobs\/([0-9a-f-]{36})$/);
+ if(req.method==='GET'&&job){motor.consultas++;if(motor.modo==='perdido'){res.statusCode=404;return responder({error:'sem job'})}if(motor.modo==='andando')return responder({id:job[1],kind:motor.kind??'analysis',status:'running',stage:'x',message:'x',progress:50,error:null,result:null});return responder({id:job[1],kind:motor.kind??'analysis',status:'failed',stage:'erro',message:'O motor falso sempre falha.',progress:0,error:'Prova: falha de propósito.',result:null})}
  res.statusCode=404;responder({error:'rota'});
 });
 await new Promise(r=>motorFalso.listen(portaMotor,'127.0.0.1',r));
@@ -64,8 +69,31 @@ try{
  const status=corrida.map(r=>r.status).sort();
  assert.deepEqual(status,[201,201,201,429,429,429],`corrida de 6 pedidos: ${status.join(',')}`);
  assert.equal((await json(await pedir('/api/pilot',{cookie:a}))).data.runs.length,CASOS_POR_DIA,'casos gravados da conta A');marcas.push('corrida_6_pedidos_3_entram_3_recusados');
- // 2. Teto do sistema: B, C e D fazem 3 cada (6 + 9 = 15 pedidos ao motor no dia); o 16º, da conta E, é recusado antes do motor.
- const cookies={};for(const nome of ['b','c','d']){cookies[nome]=await entrar(`${nome}@prova.exemplo`);for(let i=0;i<CASOS_POR_DIA;i++)assert.equal((await novoCaso(cookies[nome])).status,201,`caso ${i+1} da conta ${nome}`)}
+ // 6. Caso preso (saúde P9). a) O motor perdeu o job: o andamento responde 200 com o caso em falha (não 503) e "tentar de novo" abre um job novo.
+ const cookies={b:await entrar('b@prova.exemplo')};
+ motor.modo='perdido';
+ let perdido=(await novoCaso(cookies.b)).data.run;
+ const andamento=await json(await pedir(`/api/pilot/${perdido.id}/progress`,{method:'POST',cookie:cookies.b}));
+ assert.equal(andamento.status,200,`andamento com o job perdido: ${andamento.status} ${JSON.stringify(andamento.data)}`);
+ perdido=andamento.data.run;assert.equal(perdido.phase,'failed','o job perdido não virou falha');assert.match(perdido.generation.error??'',/não encontrou mais/);
+ motor.modo='falha';const jobsAntes=motor.jobs;
+ const retomada=await json(await pedir(`/api/pilot/${perdido.id}`,{method:'PATCH',cookie:cookies.b,corpo:{action:'retry',revision:perdido.revision}}));
+ assert.equal(retomada.status,200,`retomar o caso perdido: ${retomada.status} ${JSON.stringify(retomada.data)}`);
+ assert.equal(motor.jobs,jobsAntes+1,'a retomada não abriu um job novo no motor');
+ assert.equal(retomada.data.run.generation.error,'Prova: falha de propósito.','o job novo não foi consultado');marcas.push('job_perdido_404_vira_falha_e_retoma_com_job_novo');
+ // b) Caso em andamento com updated_at de 3 horas atrás: a rotina agendada marca falha sem consultar o motor.
+ motor.modo='andando';
+ const preso=(await novoCaso(cookies.b)).data.run;assert.equal(preso.generation.status,'running','caso em andamento para envelhecer');
+ const pastaD1=join(estado,'v3','d1','miniflare-D1DatabaseObject'),banco=new DatabaseSync(join(pastaD1,readdirSync(pastaD1).find(f=>f.endsWith('.sqlite')&&f!=='metadata.sqlite')));
+ assert.equal(banco.prepare('UPDATE pilot_runs SET updated_at=? WHERE id=?').run(new Date(Date.now()-3*3600000).toISOString(),preso.id).changes,1,'updated_at envelhecido no D1 da prova');banco.close();
+ const consultasAntes=motor.consultas;
+ assert.equal((await fetch(`${base}/cdn-cgi/local/scheduled?cron=*/2+*+*+*+*`)).status,200,'a rotina agendada não rodou');
+ const envelhecido=(await json(await pedir(`/api/pilot/${preso.id}`,{cookie:cookies.b}))).data.run;
+ assert.equal(envelhecido.phase,'failed',`caso parado há 3 horas continua ${envelhecido.phase}/${envelhecido.generation.status}`);assert.match(envelhecido.generation.error??'',/demorou mais/);
+ assert.equal(motor.consultas,consultasAntes,'a rotina consultou o motor para o caso vencido');marcas.push('caso_parado_3h_vira_falha_sem_consultar_motor');
+ motor.modo='falha';
+ // 2. Teto do sistema: B, C e D fazem 3 cada (6 + 2 de B acima + 7 = 15 pedidos ao motor no dia); o 16º, da conta E, é recusado antes do motor.
+ for(const nome of ['b','c','d']){cookies[nome]??=await entrar(`${nome}@prova.exemplo`);for(let i=nome==='b'?2:0;i<CASOS_POR_DIA;i++)assert.equal((await novoCaso(cookies[nome])).status,201,`caso ${i+1} da conta ${nome}`)}
  const e=await entrar('e@prova.exemplo'),saudeAntes=motor.health;
  const decimoSexto=await novoCaso(e);
  assert.equal(decimoSexto.status,429,`16º caso do dia no sistema: ${decimoSexto.status} ${JSON.stringify(decimoSexto.data)}`);
