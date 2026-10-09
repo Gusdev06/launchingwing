@@ -48,7 +48,7 @@ Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver
 
 - Banco: D1 (SQLite na Cloudflare) com SQL direto via `env.DB`. Drizzle só gera migração.
 - Dados do usuário ficam no servidor, nunca em localStorage. IndexedDB só como cache de rascunho.
-- Toda rota privada: identidade pelo cabeçalho, filtro por `owner_id`, `Cache-Control: private, no-store`.
+- Toda rota privada: identidade pelo cabeçalho, filtro por `owner_id`, `Cache-Control: private, no-store`. Exceção: mídia das peças (`app/api/pilot/[id]/assets/...`) usa `private, max-age=86400, immutable`; o JSON continua `no-store`.
 - Escrita concorrente: número de revisão, nunca "último que gravou ganha".
 - Segredos só em `.dev.vars` (ignorado) e nos segredos do Worker na Cloudflare. Nada no front.
 - Páginas privadas com `robots: noindex` e `dynamic='force-dynamic'`.
