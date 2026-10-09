@@ -1,7 +1,7 @@
 // Prova de que uma conta some inteira (DAD-04, LGPD) e de que sessões e códigos vencidos saem na rotina.
 // Sobe um servidor próprio sobre dist/ com um D1 e um KV temporários (precisa de npm run build antes). Duas contas pelo
 // código de login, cada uma com caso, espaço, arquivo, art_job, mídia no KV e sessão. Apaga A por POST /api/interno/apagar-conta
-// (chave interna no cabeçalho x-chave): as 8 tabelas e o KV de A ficam em 0, os números de B não mudam, o cookie antigo de A
+// (APAGAR_CONTA_CHAVE no cabeçalho x-chave; a do fundo verde não serve): as 8 tabelas e o KV de A ficam em 0, os números de B não mudam, o cookie antigo de A
 // recebe 401. Sessão e código vencidos (gravados por SQL) somem depois da rotina agendada e os válidos ficam. Nada toca produção.
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
@@ -10,7 +10,7 @@ import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
-const porta=8793,base=`http://127.0.0.1:${porta}`,chave='c'.repeat(40),estado=mkdtempSync(join(tmpdir(),'launchwing-apagar-conta-')),configMigracoes='dist/server/wrangler.migracoes.json';
+const porta=8793,base=`http://127.0.0.1:${porta}`,chave='c'.repeat(40),chaveFundoVerde='f'.repeat(40),estado=mkdtempSync(join(tmpdir(),'launchwing-apagar-conta-')),configMigracoes='dist/server/wrangler.migracoes.json';
 const migrou=spawnSync(process.execPath,['scripts/migracoes.mjs','local'],{env:{...process.env,PERSIST_TO:estado},encoding:'utf8'});
 assert.equal(migrou.status,0,'as migrações não entraram no banco da prova:\n'+(migrou.stdout+migrou.stderr).slice(-2000));
 const banco=JSON.parse(readFileSync(configMigracoes,'utf8')).d1_databases[0].database_name;
@@ -21,7 +21,7 @@ const kvGravar=(nome,valor)=>wrangler(['kv','key','put','--binding','MIDIA','-c'
 
 let saida='';
 const servidor=spawn(process.execPath,['--import','./scripts/sites-env.mjs','./node_modules/wrangler/bin/wrangler.js','dev','--config','dist/server/wrangler.json','--local','--persist-to',estado,'--ip','127.0.0.1','--port',String(porta),'--inspector-port','0',
- '--var','LOGIN_PROPRIO:1','--var','LOGIN_EMAIL_TESTE:1','--var',`FUNDO_VERDE_CHAVE:${chave}`],{stdio:['ignore','pipe','pipe']});
+ '--var','LOGIN_PROPRIO:1','--var','LOGIN_EMAIL_TESTE:1','--var',`APAGAR_CONTA_CHAVE:${chave}`,'--var',`FUNDO_VERDE_CHAVE:${chaveFundoVerde}`],{stdio:['ignore','pipe','pipe']});
 servidor.stdout.on('data',d=>{saida+=d});servidor.stderr.on('data',d=>{saida+=d});
 // Sem keep-alive: entre uma chamada e outra o teste fica segundos parado no wrangler e o servidor fecha a conexão ociosa.
 const f=(url,o={})=>fetch(url,{...o,headers:{Connection:'close',...(o.headers??{})}});
@@ -60,7 +60,8 @@ try{
  // sem a chave interna, nada acontece
  assert.equal((await pedir('/api/interno/apagar-conta',{method:'POST',corpo:{email:A.email}})).status,401,'apagar conta sem chave precisa dar 401');
  assert.equal((await pedir('/api/interno/apagar-conta',{method:'POST',corpo:{email:A.email},cabecalhos:{'x-chave':'errada'}})).status,401,'apagar conta com chave errada precisa dar 401');
- assert.deepEqual(contagem(A),cheio,'sem chave válida a conta A mudou');marcas.push('sem_chave_401');
+ assert.equal((await pedir('/api/interno/apagar-conta',{method:'POST',corpo:{email:A.email},cabecalhos:{'x-chave':chaveFundoVerde}})).status,401,'a chave do fundo verde não pode apagar conta');
+ assert.deepEqual(contagem(A),cheio,'sem chave válida a conta A mudou');marcas.push('sem_chave_401_fundo_verde_401');
  // apaga A
  const apagou=await pedir('/api/interno/apagar-conta',{method:'POST',corpo:{email:A.email.toUpperCase()},cabecalhos:{'x-chave':chave}});
  assert.equal(apagou.status,200,`apagar conta respondeu ${apagou.status}: ${apagou.corpo}`);

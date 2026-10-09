@@ -24,6 +24,8 @@ LAUNCHWING_ENGINE_TOKEN=
 
 # Chave interna da API de fundo verde (cabecalho x-chave). Sem ela, a rota recusa tudo.
 FUNDO_VERDE_CHAVE=
+# Chave propria de POST /api/interno/apagar-conta (cabecalho x-chave). Sem ela, a rota responde 404.
+APAGAR_CONTA_CHAVE=
 # Bancos de foto da busca de fundo verde. As URLs base so mudam para apontar a um servidor falso na prova.
 PEXELS_API_KEY=
 PEXELS_BASE_URL=
