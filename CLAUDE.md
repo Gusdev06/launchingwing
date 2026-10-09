@@ -24,11 +24,12 @@ node scripts/pilot/cota-regras.mjs   # 3 lotes por caso, o 4º é recusado, sem 
 node scripts/conf/registrar-erro-regras.mjs # todo catch grava JSON com a causa e sem e-mail, sem servidor
 node scripts/pilot/cota-concorrente-smoke.mjs # cotas por conta e do sistema com envios ao mesmo tempo, sobe o próprio servidor (npm run build antes)
 node scripts/waitlist/smoke.mjs      # lista de espera guarda cada e-mail uma vez, sobe o próprio servidor (npm run build antes)
+node scripts/login/apagar-conta-smoke.mjs # POST /api/interno/apagar-conta (x-chave = APAGAR_CONTA_CHAVE, corpo {email}, 404 sem a variável) zera as 9 tabelas (com rate_limits) e o KV da conta, e a rotina apaga sessões e códigos vencidos, sobe o próprio servidor (npm run build antes)
 npm test                             # o mesmo que npm run test:unit
 npm run db:migrate:local             # tabelas no banco do dev (depois de npm run build)
 ```
 
-Provar: `npm run check` (tipos, build, lint e `test:unit`: as provas sem servidor, `scripts/*/*-regras.mjs` e os `export-smoke`, `access-smoke`, `lote-smoke`), depois `npm run test:e2e` (`login/rotas-smoke`, `pilot/esqueleto-smoke`, `pilot/cota-concorrente-smoke`, `waitlist/smoke`: cada um sobe o próprio servidor) e os `scripts/*/smoke.mjs` com o dev rodando.
+Provar: `npm run check` (tipos, build, lint e `test:unit`: as provas sem servidor, `scripts/*/*-regras.mjs` e os `export-smoke`, `access-smoke`, `lote-smoke`), depois `npm run test:e2e` (`login/rotas-smoke`, `pilot/esqueleto-smoke`, `pilot/cota-concorrente-smoke`, `waitlist/smoke`, `login/apagar-conta-smoke`: cada um sobe o próprio servidor) e os `scripts/*/smoke.mjs` com o dev rodando.
 
 Deploy: direto na Cloudflare com `npm run deploy` (token de API no ambiente; ver README). O ChatGPT Sites saiu em 28/09/2026. Login próprio por código no e-mail desde 06/10 (`lib/login-codigo.ts`, `lib/login-d1.ts`, rotas `/entrar`, `/api/entrar/*`, `/sair`); o Cloudflare Access (`lib/access-jwt.ts`) continua como segunda opção.
 
