@@ -3,6 +3,7 @@ import {z} from 'zod';
 import {contextSchema,type PilotData,type PilotRun,type PilotGeneration,type PilotPiece} from './pilot-model';
 import {findRun,saveRun} from './pilot-store';
 import {generatedPieces,avisoDoLote,historicoDoDono} from './pilot-lote';
+import {rateLimited,devolverVaga} from './rate-limit';
 export {generatedPieces};
 
 export async function engineFetch(path:string,init?:RequestInit){
@@ -25,8 +26,17 @@ export function mergeGeneratedPieces(existing:PilotPiece[],incoming:PilotPiece[]
 export const LOTES_POR_CASO=3;
 // Geração parada há mais tempo que isto vira falha na rotina, sem perguntar ao motor (saúde P9, 08/10): o motor roda num Mac e pode perder o pedido.
 export const PRAZO_GERACAO_MS=2*3600000;
+// Teto do sistema inteiro de pedidos que criam trabalho no motor (POST /jobs e /retry), decisão do dono em 10/10 (saúde R4-P1): um caso
+// abre até 16 trabalhos, então o teto de casos não segura o gasto. Além dele o pedido não sai e a geração vira falha "tente amanhã".
+export const PEDIDOS_AO_MOTOR_POR_DIA=60;
+const MOTOR_CHEIO='O gerador atingiu o limite de pedidos do dia. Tente amanhã.';
+async function pedirAoMotor(path:string,body:string){
+ if(await rateLimited('motor-global',PEDIDOS_AO_MOTOR_POR_DIA,86400000))return null;
+ try{return await engineFetch(path,{method:'POST',body})}catch(erro){await devolverVaga('motor-global');throw erro}
+}
 export function marcarFalha(data:PilotData,mensagem:string){data.phase='failed';data.generation={...data.generation!,status:'failed',error:mensagem,message:mensagem}}
 export function queueProduction(data:PilotData){if((data.batches??0)>=LOTES_POR_CASO)throw new Error(`Este caso já recebeu ${LOTES_POR_CASO} lotes. Abra outro caso para novas sugestões.`);data.generation=generation('production');data.phase='generating';data.batches=(data.batches??0)+1;data.events.push({at:new Date().toISOString(),kind:'api_production_requested'})}
+async function motorCheio(owner:string,run:PilotRun){const cheio=runData(run);marcarFalha(cheio,MOTOR_CHEIO);cheio.generation={...cheio.generation!,retryRequested:undefined};await saveRun(owner,run.id,run.revision,cheio);return (await findRun(owner,run.id))!}
 // The claim is saved before talking to the engine. Repeated requests reuse its
 // key, so a lost response or closing the tab cannot start a second paid job.
 export async function syncGeneration(owner:string,run:PilotRun){
@@ -35,8 +45,8 @@ export async function syncGeneration(owner:string,run:PilotRun){
   if(run.flow==='blitz'&&current.kind==='analysis'&&run.onboarding?.completedAt){const next=runData(run);next.analysisJobId=current.jobId;queueProduction(next);if(await saveRun(owner,run.id,run.revision,next))return syncGeneration(owner,(await findRun(owner,run.id))!);return (await findRun(owner,run.id))!}return run;
  }
  let jobId=current.jobId;
- if(!jobId){const input=current.kind==='analysis'?{url:run.url,...(run.flow==='blitz'?{prefetch:true}:{}),...(run.descriptionInput?{description:run.descriptionInput}:{})}:{url:run.url,context:run.context,facts:run.facts,sources:run.sources,...(run.flow==='blitz'?{analysisJobId:run.analysisJobId,preferences:{...run.onboarding?.answers,...historicoDoDono(run.pieces)}}:{})};const body=await(await engineFetch('/jobs',{method:'POST',body:JSON.stringify({key:current.key,kind:current.kind,input})})).json();jobId=z.object({id:z.string().uuid()}).parse(body).id}
- if(current.retryRequested&&current.jobId)await engineFetch(`/jobs/${jobId}/retry`,{method:'POST',body:'{}'});
+ if(!jobId){const input=current.kind==='analysis'?{url:run.url,...(run.flow==='blitz'?{prefetch:true}:{}),...(run.descriptionInput?{description:run.descriptionInput}:{})}:{url:run.url,context:run.context,facts:run.facts,sources:run.sources,...(run.flow==='blitz'?{analysisJobId:run.analysisJobId,preferences:{...run.onboarding?.answers,...historicoDoDono(run.pieces)}}:{})};const pedido=await pedirAoMotor('/jobs',JSON.stringify({key:current.key,kind:current.kind,input}));if(!pedido)return motorCheio(owner,run);jobId=z.object({id:z.string().uuid()}).parse(await pedido.json()).id}
+ if(current.retryRequested&&current.jobId&&!await pedirAoMotor(`/jobs/${jobId}/retry`,'{}'))return motorCheio(owner,run);
  let job:z.infer<typeof jobSchema>;
  try{job=jobSchema.parse(await(await engineFetch(`/jobs/${jobId}`)).json())}
  catch(erro){

@@ -1,7 +1,10 @@
 // Prova das cotas (saúde P1, 08/10) contra um servidor local próprio, com banco novo numa pasta temporária e um motor falso
 // em node:http: nada chega ao motor real nem ao banco do dev. Precisa de npm run build antes.
-//   1. seis pedidos de caso ao mesmo tempo da mesma conta: exatamente 3 entram (201) e 3 são recusados (429);
-//   2. o 16º caso do dia no sistema inteiro, de outra conta, recebe 429 sem o motor ser chamado;
+//   1. dez pedidos de caso ao mesmo tempo da mesma conta: exatamente 3 entram (201) e 7 são recusados (429) sem gastar vaga do sistema;
+//      com o motor fora do ar, 15 pedidos de caso recebem 503 e também não gastam vaga (saúde R4-P1: o teto conta casos gravados);
+//      seis contas do mesmo IP pedem caso ao mesmo tempo: 5 entram e a 6ª recebe 429 da rede;
+//   2. as 15 vagas do dia enchem todas com 201; cada POST /jobs e /retry ao motor é contado (60 por dia no sistema): com a contagem
+//      em 59 o caso 14 chega ao motor e o 15º não chega e vira falha "tente amanhã"; o 16º caso recebe 429 sem o motor ser chamado;
 //   3. "Retomar geração" vale 3 vezes por geração, a 4ª recebe 400;
 //   4. a 11ª chave de espaço recebe 413; com cotas de prova de 20 MiB por conta e 50 MiB no sistema (variáveis), 6 envios de 5 MiB ao
 //      mesmo tempo da mesma conta dão exatamente 4x201 e 2x413, o arquivo que passa do teto do sistema recebe 413 "sem espaço" (saúde P6)
@@ -18,7 +21,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
 const porta=8798,base=`http://127.0.0.1:${porta}`,portaMotor=8791;
-const CASOS_POR_DIA=3,CASOS_NO_SISTEMA_POR_DIA=15,TENTATIVAS=3,COTA_CHAVES=10,CODIGOS_POR_DIA=300;
+const CASOS_POR_DIA=3,CASOS_NO_SISTEMA_POR_DIA=15,CASOS_POR_IP=5,PEDIDOS_AO_MOTOR_POR_DIA=60,TENTATIVAS=3,COTA_CHAVES=10,CODIGOS_POR_DIA=300;
 const MiB=1024*1024,COTA_BYTES_CONTA=20*MiB,COTA_BYTES_SISTEMA=50*MiB;
 const estado=mkdtempSync(join(tmpdir(),'launchwing-cota-'));
 const migrou=spawnSync(process.execPath,['scripts/migracoes.mjs','local'],{env:{...process.env,PERSIST_TO:estado},encoding:'utf8'});
@@ -28,13 +31,13 @@ assert.equal(migrou.status,0,'migrações no banco temporário:\n'+(migrou.stdou
 const config=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
 writeFileSync('dist/wrangler.cota.json',JSON.stringify({...config,main:'server/index.js',assets:{...config.assets,directory:'client'},d1_databases:config.d1_databases.map(d=>({...d,migrations_dir:'../migrations'}))}));
 // Motor falso: /health demora 300 ms (alarga a janela entre contar e gravar), todo job termina em falha, /retry é contado.
-// modo 'perdido': GET /jobs/:id responde 404; modo 'andando': responde running; consultas conta os GET /jobs/:id.
+// modo 'fora': /health responde 503; modo 'perdido': GET /jobs/:id responde 404; modo 'andando': responde running; consultas conta os GET /jobs/:id.
 const motor={health:0,jobs:0,retries:0,consultas:0,modo:'falha'};
 const motorFalso=createServer((req,res)=>{
  const responder=(corpo,ms=0)=>setTimeout(()=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(corpo))},ms);
  if(req.headers.authorization!=='Bearer prova'){res.statusCode=401;return responder({error:'token'})}
  const url=new URL(req.url,'http://motor');
- if(req.method==='GET'&&url.pathname==='/health'){motor.health++;return responder({ready:true},300)}
+ if(req.method==='GET'&&url.pathname==='/health'){motor.health++;if(motor.modo==='fora'){res.statusCode=503;return responder({error:'O motor falso está fora do ar.'})}return responder({ready:true},300)}
  if(req.method==='POST'&&url.pathname==='/jobs'){motor.jobs++;let corpo='';req.on('data',d=>{corpo+=d});req.on('end',()=>{const {kind}=JSON.parse(corpo);motor.kind=kind;responder({id:randomUUID()})});return}
  const retry=url.pathname.match(/^\/jobs\/([0-9a-f-]{36})\/retry$/);if(req.method==='POST'&&retry){motor.retries++;return responder({})}
  const job=url.pathname.match(/^\/jobs\/([0-9a-f-]{36})$/);
@@ -59,18 +62,24 @@ async function entrar(email){
  const r=await pedir('/api/entrar/verificar',{method:'POST',corpo:{email,codigo:saida.match(re)[1]}});assert.equal(r.status,200);
  return (r.headers.get('set-cookie')??'').split(';')[0];
 }
+const abrirBanco=()=>{const pasta=join(estado,'v3','d1','miniflare-D1DatabaseObject');return new DatabaseSync(join(pasta,readdirSync(pasta).find(f=>f.endsWith('.sqlite')&&f!=='metadata.sqlite')))};
 const novoCaso=cookie=>pedir('/api/pilot',{method:'POST',cookie,corpo:{mode:'api',url:'https://exemplo-prova.com/produto'}}).then(json);
 try{
  assert.ok(await esperar(()=>/Ready on/i.test(saida),90000),'o servidor local não ligou:\n'+saida.slice(-2000));
  const a=await entrar('a@prova.exemplo');
  assert.deepEqual((await json(await pedir('/api/pilot/engine',{cookie:a}))).data,{ready:true},'o motor falso responde ao servidor');
- // 1. Corrida: 6 pedidos ao mesmo tempo da conta A.
- const corrida=await Promise.all(Array.from({length:6},()=>novoCaso(a)));
+ // 1. Rajada: 10 pedidos ao mesmo tempo da conta A. Entram 3 (o teto da conta); os 7 recusados não gastam vaga do sistema (item 2: as 15 vagas enchem com 201).
+ const corrida=await Promise.all(Array.from({length:10},()=>novoCaso(a)));
  const status=corrida.map(r=>r.status).sort();
- assert.deepEqual(status,[201,201,201,429,429,429],`corrida de 6 pedidos: ${status.join(',')}`);
- assert.equal((await json(await pedir('/api/pilot',{cookie:a}))).data.runs.length,CASOS_POR_DIA,'casos gravados da conta A');marcas.push('corrida_6_pedidos_3_entram_3_recusados');
- // 6. Caso preso (saúde P9). a) O motor perdeu o job: o andamento responde 200 com o caso em falha (não 503) e "tentar de novo" abre um job novo.
+ assert.deepEqual(status,[201,201,201,...Array(7).fill(429)],`rajada de 10 pedidos: ${status.join(',')}`);
+ assert.equal((await json(await pedir('/api/pilot',{cookie:a}))).data.runs.length,CASOS_POR_DIA,'casos gravados da conta A');marcas.push('rajada_10_pedidos_3_entram_7_recusados');
+ let criados=CASOS_POR_DIA;
+ // Motor fora do ar: 15 pedidos de caso da conta B recebem 503, nenhum grava caso e nenhum gasta vaga do sistema.
  const cookies={b:await entrar('b@prova.exemplo')};
+ motor.modo='fora';const fora=[];for(let i=0;i<CASOS_NO_SISTEMA_POR_DIA;i++)fora.push((await novoCaso(cookies.b)).status);motor.modo='falha';
+ assert.deepEqual(fora,Array(CASOS_NO_SISTEMA_POR_DIA).fill(503),`motor fora do ar: ${fora.join(',')}`);
+ assert.equal((await json(await pedir('/api/pilot',{cookie:cookies.b}))).data.runs.length,0,'caso gravado com o motor fora');marcas.push('motor_fora_15_pedidos_503_sem_gastar_vaga');
+ // 6. Caso preso (saúde P9). a) O motor perdeu o job: o andamento responde 200 com o caso em falha (não 503) e "tentar de novo" abre um job novo.
  motor.modo='perdido';
  let perdido=(await novoCaso(cookies.b)).data.run;
  const andamento=await json(await pedir(`/api/pilot/${perdido.id}/progress`,{method:'POST',cookie:cookies.b}));
@@ -84,7 +93,7 @@ try{
  // b) Caso em andamento com updated_at de 3 horas atrás: a rotina agendada marca falha sem consultar o motor.
  motor.modo='andando';
  const preso=(await novoCaso(cookies.b)).data.run;assert.equal(preso.generation.status,'running','caso em andamento para envelhecer');
- const pastaD1=join(estado,'v3','d1','miniflare-D1DatabaseObject'),banco=new DatabaseSync(join(pastaD1,readdirSync(pastaD1).find(f=>f.endsWith('.sqlite')&&f!=='metadata.sqlite')));
+ const banco=abrirBanco();
  assert.equal(banco.prepare('UPDATE pilot_runs SET updated_at=? WHERE id=?').run(new Date(Date.now()-3*3600000).toISOString(),preso.id).changes,1,'updated_at envelhecido no D1 da prova');banco.close();
  const consultasAntes=motor.consultas;
  assert.equal((await fetch(`${base}/cdn-cgi/local/scheduled?cron=*/2+*+*+*+*`)).status,200,'a rotina agendada não rodou');
@@ -92,13 +101,15 @@ try{
  assert.equal(envelhecido.phase,'failed',`caso parado há 3 horas continua ${envelhecido.phase}/${envelhecido.generation.status}`);assert.match(envelhecido.generation.error??'',/demorou mais/);
  assert.equal(motor.consultas,consultasAntes,'a rotina consultou o motor para o caso vencido');marcas.push('caso_parado_3h_vira_falha_sem_consultar_motor');
  motor.modo='falha';
- // 2. Teto do sistema: B, C e D fazem 3 cada (6 + 2 de B acima + 7 = 15 pedidos ao motor no dia); o 16º, da conta E, é recusado antes do motor.
- for(const nome of ['b','c','d']){cookies[nome]??=await entrar(`${nome}@prova.exemplo`);for(let i=nome==='b'?2:0;i<CASOS_POR_DIA;i++)assert.equal((await novoCaso(cookies[nome])).status,201,`caso ${i+1} da conta ${nome}`)}
- const e=await entrar('e@prova.exemplo'),saudeAntes=motor.health;
- const decimoSexto=await novoCaso(e);
- assert.equal(decimoSexto.status,429,`16º caso do dia no sistema: ${decimoSexto.status} ${JSON.stringify(decimoSexto.data)}`);
- assert.equal(motor.health,saudeAntes,'o motor não foi chamado para o 16º caso');
- assert.match(decimoSexto.data.error??'',/limite do dia/);marcas.push(`16o_caso_do_sistema_429_sem_chamar_motor (${CASOS_NO_SISTEMA_POR_DIA} no dia)`);
+ criados+=2;
+ // Teto por IP: seis contas novas do mesmo endereço pedem um caso ao mesmo tempo; 5 entram e a 6ª recebe 429 da rede.
+ const daRede=[];for(let i=1;i<=CASOS_POR_IP+1;i++)daRede.push(await entrar(`rede${i}@prova.exemplo`));
+ const rede=await Promise.all(daRede.map(cookie=>pedir('/api/pilot',{method:'POST',cookie,ipDe:'10.9.9.9',corpo:{mode:'api',url:'https://exemplo-prova.com/produto'}}).then(json)));
+ assert.deepEqual(rede.map(r=>r.status).sort(),[...Array(CASOS_POR_IP).fill(201),429],`6 contas do mesmo IP: ${rede.map(r=>r.status).join(',')}`);
+ assert.match(rede.find(r=>r.status===429).data.error??'',/desta rede/);criados+=CASOS_POR_IP;marcas.push(`6_contas_mesmo_ip_5_entram_6a_429 (${CASOS_POR_IP} por IP)`);
+ // 2. Teto do sistema: as vagas que sobraram enchem com 201 (nenhuma foi gasta pelas recusas nem pelo motor fora) até 13 casos.
+ const encher=async ate=>{for(const nome of ['b','c','d','e']){cookies[nome]??=await entrar(`${nome}@prova.exemplo`);let n=(await json(await pedir('/api/pilot',{cookie:cookies[nome]}))).data.runs.length;while(n<CASOS_POR_DIA&&criados<ate){const r=await novoCaso(cookies[nome]);assert.equal(r.status,201,`caso ${criados+1} do sistema (conta ${nome}): ${r.status} ${JSON.stringify(r.data)}`);n++;criados++}}};
+ await encher(CASOS_NO_SISTEMA_POR_DIA-2);
  // 3. Retomar geração: a conta B tem casos em falha (o motor falso sempre falha); 3 retomadas passam, a 4ª não.
  let caso=(await json(await pedir('/api/pilot',{cookie:cookies.b}))).data.runs[0];assert.equal(caso.phase,'failed','caso em falha para retomar');
  const retriesAntes=motor.retries;
@@ -106,6 +117,26 @@ try{
  const quarta=await json(await pedir(`/api/pilot/${caso.id}`,{method:'PATCH',cookie:cookies.b,corpo:{action:'retry',revision:caso.revision}}));
  assert.equal(quarta.status,400,`4ª retomada: ${quarta.status} ${JSON.stringify(quarta.data)}`);
  assert.equal(motor.retries-retriesAntes,TENTATIVAS,'o motor recebeu exatamente 3 /retry');marcas.push('quarta_retomada_400_motor_recebeu_3_retry');
+ // Teto de pedidos ao motor: cada POST /jobs e /retry que chegou ao motor está contado; com a contagem em 59, o caso 14 chega ao motor (60º)
+ // e o 15º não chega: o caso é gravado em falha com "tente amanhã", e tentar de novo também não chega ao motor.
+ const banco2=abrirBanco(),contados=banco2.prepare("SELECT count FROM rate_limits WHERE key='motor-global'").get()?.count;
+ assert.equal(contados,motor.jobs+motor.retries,`pedidos ao motor contados ${contados}, recebidos ${motor.jobs+motor.retries}`);
+ assert.equal(banco2.prepare("UPDATE rate_limits SET count=? WHERE key='motor-global'").run(PEDIDOS_AO_MOTOR_POR_DIA-1).changes,1);banco2.close();
+ const f=await entrar('f@prova.exemplo'),jobsAntes14=motor.jobs,c14=await novoCaso(f);
+ assert.equal(c14.status,201,`caso 14: ${c14.status} ${JSON.stringify(c14.data)}`);assert.equal(motor.jobs,jobsAntes14+1,'o 60º pedido do dia não chegou ao motor');const antes15=motor.jobs+motor.retries;
+ const g=await entrar('g@prova.exemplo'),c15=await novoCaso(g);criados+=2;
+ assert.equal(c15.status,201,`caso 15: ${c15.status} ${JSON.stringify(c15.data)}`);assert.equal(motor.jobs,jobsAntes14+1,'o 61º pedido do dia chegou ao motor');
+ assert.equal(c15.data.run.phase,'failed',`caso além do teto do motor ficou ${c15.data.run.phase}`);assert.match(c15.data.run.generation.error??'',/Tente amanhã/);
+ const deNovo=await json(await pedir(`/api/pilot/${c15.data.run.id}`,{method:'PATCH',cookie:g,corpo:{action:'retry',revision:c15.data.run.revision}}));
+ assert.equal(deNovo.status,200,`tentar de novo além do teto: ${deNovo.status} ${JSON.stringify(deNovo.data)}`);assert.equal(deNovo.data.run.phase,'failed');assert.match(deNovo.data.run.generation.error??'',/Tente amanhã/);
+ assert.equal(motor.jobs+motor.retries,antes15,'tentar de novo além do teto chegou ao motor');marcas.push(`61o_pedido_ao_motor_nao_sai_e_caso_vira_falha (${PEDIDOS_AO_MOTOR_POR_DIA} no dia)`);
+ assert.equal(criados,CASOS_NO_SISTEMA_POR_DIA);const banco3=abrirBanco();assert.equal(banco3.prepare("SELECT COUNT(*) AS n FROM pilot_runs WHERE json_extract(data,'$.mode')='api'").get().n,CASOS_NO_SISTEMA_POR_DIA,'casos gravados no sistema');banco3.close();
+ const h=await entrar('h@prova.exemplo'),saudeAntes=motor.health;
+ const decimoSexto=await novoCaso(h);
+ assert.equal(decimoSexto.status,429,`16º caso do dia no sistema: ${decimoSexto.status} ${JSON.stringify(decimoSexto.data)}`);
+ assert.equal(motor.health,saudeAntes,'o motor não foi chamado para o 16º caso');
+ assert.match(decimoSexto.data.error??'',/limite do dia/);marcas.push(`16o_caso_do_sistema_429_sem_chamar_motor (${CASOS_NO_SISTEMA_POR_DIA} no dia, todos com 201 antes)`);
+ const e=cookies.e??await entrar('e@prova.exemplo');
  // 4. Cota da conta: 10 chaves de espaço cabem, a 11ª não. Arquivos com as cotas de prova (20 MiB por conta, 50 MiB no sistema):
  //    a) 6 envios de 5 MiB ao mesmo tempo da conta E: exatamente 4 entram (20 MiB) e 2 recebem 413 da conta (sequencial não prova);
  //    b) A envia 19 MiB (201, sistema em 39), B envia 19 MiB (413 "sem espaço": 58 passa de 50), A envia 1 MiB (201, conta em 20) e mais 1 MiB (413 da conta).
