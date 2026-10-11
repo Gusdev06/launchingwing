@@ -12,4 +12,8 @@ const caso=batches=>({url:'https://exemplo-prova.com/',caseId:null,mode:'api',ph
 const segundo=caso(LOTES_POR_CASO-1);queueProduction(segundo);
 assert.equal(segundo.batches,LOTES_POR_CASO);assert.equal(segundo.phase,'generating');assert.equal(segundo.generation.kind,'production');
 assert.throws(()=>queueProduction(caso(LOTES_POR_CASO)),/já recebeu 3 lotes/,'o 4º lote precisa ser recusado');
+// IPv6 conta pela faixa /64: dois endereços da mesma faixa dão a mesma chave; IPv4 fica igual.
+const {faixaDoIp}=await import('../../lib/rate-limit.ts');
+assert.equal(faixaDoIp('2804:14c:65a1:1a2b::1'),faixaDoIp('2804:14c:65a1:1a2b:dead:beef:1:2'));assert.equal(faixaDoIp('2804:14c:65a1:1a2b::1'),'2804:14c:65a1:1a2b::/64');
+assert.notEqual(faixaDoIp('2804:14c:65a1:1a2b::1'),faixaDoIp('2804:14c:65a1:1a2c::1'));assert.equal(faixaDoIp('2001:db8::1'),'2001:db8:0:0::/64');assert.equal(faixaDoIp('203.0.113.9'),'203.0.113.9');
 console.log(`cota-regras ok: ${LOTES_POR_CASO} lotes por caso, o ${LOTES_POR_CASO+1}º é recusado`);

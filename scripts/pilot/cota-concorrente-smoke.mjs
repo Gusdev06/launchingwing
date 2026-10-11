@@ -63,7 +63,7 @@ async function entrar(email){
  return (r.headers.get('set-cookie')??'').split(';')[0];
 }
 const abrirBanco=()=>{const pasta=join(estado,'v3','d1','miniflare-D1DatabaseObject');return new DatabaseSync(join(pasta,readdirSync(pasta).find(f=>f.endsWith('.sqlite')&&f!=='metadata.sqlite')))};
-const novoCaso=cookie=>pedir('/api/pilot',{method:'POST',cookie,corpo:{mode:'api',url:'https://exemplo-prova.com/produto'}}).then(json);
+const novoCaso=(cookie,ipDe)=>pedir('/api/pilot',{method:'POST',cookie,ipDe,corpo:{mode:'api',url:'https://exemplo-prova.com/produto'}}).then(json);
 try{
  assert.ok(await esperar(()=>/Ready on/i.test(saida),90000),'o servidor local não ligou:\n'+saida.slice(-2000));
  const a=await entrar('a@prova.exemplo');
@@ -76,12 +76,14 @@ try{
  let criados=CASOS_POR_DIA;
  // Motor fora do ar: 15 pedidos de caso da conta B recebem 503, nenhum grava caso e nenhum gasta vaga do sistema.
  const cookies={b:await entrar('b@prova.exemplo')};
- motor.modo='fora';const fora=[];for(let i=0;i<CASOS_NO_SISTEMA_POR_DIA;i++)fora.push((await novoCaso(cookies.b)).status);motor.modo='falha';
+ // Todos do mesmo endereço: recusa por motor fora devolve a vaga do IP, senão o próximo caso dessa rede seria 429 (revisão R4-P1).
+ motor.modo='fora';const fora=[];for(let i=0;i<CASOS_NO_SISTEMA_POR_DIA;i++)fora.push((await novoCaso(cookies.b,'10.8.8.8')).status);motor.modo='falha';
  assert.deepEqual(fora,Array(CASOS_NO_SISTEMA_POR_DIA).fill(503),`motor fora do ar: ${fora.join(',')}`);
  assert.equal((await json(await pedir('/api/pilot',{cookie:cookies.b}))).data.runs.length,0,'caso gravado com o motor fora');marcas.push('motor_fora_15_pedidos_503_sem_gastar_vaga');
  // 6. Caso preso (saúde P9). a) O motor perdeu o job: o andamento responde 200 com o caso em falha (não 503) e "tentar de novo" abre um job novo.
  motor.modo='perdido';
- let perdido=(await novoCaso(cookies.b)).data.run;
+ const doMesmoIp=await novoCaso(cookies.b,'10.8.8.8');assert.equal(doMesmoIp.status,201,`depois de 15 recusas pelo motor fora, a mesma rede recebeu ${doMesmoIp.status}: a vaga do IP foi gasta`);marcas.push('recusa_nao_gasta_vaga_do_ip');
+ let perdido=doMesmoIp.data.run;
  const andamento=await json(await pedir(`/api/pilot/${perdido.id}/progress`,{method:'POST',cookie:cookies.b}));
  assert.equal(andamento.status,200,`andamento com o job perdido: ${andamento.status} ${JSON.stringify(andamento.data)}`);
  perdido=andamento.data.run;assert.equal(perdido.phase,'failed','o job perdido não virou falha');assert.match(perdido.generation.error??'',/não encontrou mais/);
