@@ -2,7 +2,6 @@
 // em node:http: nada chega ao motor real nem ao banco do dev. Precisa de npm run build antes.
 //   1. dez pedidos de caso ao mesmo tempo da mesma conta: exatamente 3 entram (201) e 7 são recusados (429) sem gastar vaga do sistema;
 //      com o motor fora do ar, 15 pedidos de caso recebem 503 e também não gastam vaga (saúde R4-P1: o teto conta casos gravados);
-//      seis contas do mesmo IP pedem caso ao mesmo tempo: 5 entram e a 6ª recebe 429 da rede;
 //   2. as 15 vagas do dia enchem todas com 201; cada POST /jobs e /retry ao motor é contado (60 por dia no sistema): com a contagem
 //      em 59 o caso 14 chega ao motor e o 15º não chega e vira falha "tente amanhã"; o 16º caso recebe 429 sem o motor ser chamado;
 //   3. "Retomar geração" vale 3 vezes por geração, a 4ª recebe 400;
@@ -21,7 +20,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
 const porta=8798,base=`http://127.0.0.1:${porta}`,portaMotor=8791;
-const CASOS_POR_DIA=3,CASOS_NO_SISTEMA_POR_DIA=15,CASOS_POR_IP=5,PEDIDOS_AO_MOTOR_POR_DIA=60,TENTATIVAS=3,COTA_CHAVES=10,CODIGOS_POR_DIA=300;
+const CASOS_POR_DIA=3,CASOS_NO_SISTEMA_POR_DIA=15,PEDIDOS_AO_MOTOR_POR_DIA=60,TENTATIVAS=3,COTA_CHAVES=10,CODIGOS_POR_DIA=300;
 const MiB=1024*1024,COTA_BYTES_CONTA=20*MiB,COTA_BYTES_SISTEMA=50*MiB;
 const estado=mkdtempSync(join(tmpdir(),'launchwing-cota-'));
 const migrou=spawnSync(process.execPath,['scripts/migracoes.mjs','local'],{env:{...process.env,PERSIST_TO:estado},encoding:'utf8'});
@@ -76,14 +75,12 @@ try{
  let criados=CASOS_POR_DIA;
  // Motor fora do ar: 15 pedidos de caso da conta B recebem 503, nenhum grava caso e nenhum gasta vaga do sistema.
  const cookies={b:await entrar('b@prova.exemplo')};
- // Todos do mesmo endereço: recusa por motor fora devolve a vaga do IP, senão o próximo caso dessa rede seria 429 (revisão R4-P1).
- motor.modo='fora';const fora=[];for(let i=0;i<CASOS_NO_SISTEMA_POR_DIA;i++)fora.push((await novoCaso(cookies.b,'10.8.8.8')).status);motor.modo='falha';
+ motor.modo='fora';const fora=[];for(let i=0;i<CASOS_NO_SISTEMA_POR_DIA;i++)fora.push((await novoCaso(cookies.b)).status);motor.modo='falha';
  assert.deepEqual(fora,Array(CASOS_NO_SISTEMA_POR_DIA).fill(503),`motor fora do ar: ${fora.join(',')}`);
  assert.equal((await json(await pedir('/api/pilot',{cookie:cookies.b}))).data.runs.length,0,'caso gravado com o motor fora');marcas.push('motor_fora_15_pedidos_503_sem_gastar_vaga');
  // 6. Caso preso (saúde P9). a) O motor perdeu o job: o andamento responde 200 com o caso em falha (não 503) e "tentar de novo" abre um job novo.
  motor.modo='perdido';
- const doMesmoIp=await novoCaso(cookies.b,'10.8.8.8');assert.equal(doMesmoIp.status,201,`depois de 15 recusas pelo motor fora, a mesma rede recebeu ${doMesmoIp.status}: a vaga do IP foi gasta`);marcas.push('recusa_nao_gasta_vaga_do_ip');
- let perdido=doMesmoIp.data.run;
+ let perdido=(await novoCaso(cookies.b)).data.run;
  const andamento=await json(await pedir(`/api/pilot/${perdido.id}/progress`,{method:'POST',cookie:cookies.b}));
  assert.equal(andamento.status,200,`andamento com o job perdido: ${andamento.status} ${JSON.stringify(andamento.data)}`);
  perdido=andamento.data.run;assert.equal(perdido.phase,'failed','o job perdido não virou falha');assert.match(perdido.generation.error??'',/não encontrou mais/);
@@ -104,11 +101,6 @@ try{
  assert.equal(motor.consultas,consultasAntes,'a rotina consultou o motor para o caso vencido');marcas.push('caso_parado_3h_vira_falha_sem_consultar_motor');
  motor.modo='falha';
  criados+=2;
- // Teto por IP: seis contas novas do mesmo endereço pedem um caso ao mesmo tempo; 5 entram e a 6ª recebe 429 da rede.
- const daRede=[];for(let i=1;i<=CASOS_POR_IP+1;i++)daRede.push(await entrar(`rede${i}@prova.exemplo`));
- const rede=await Promise.all(daRede.map(cookie=>pedir('/api/pilot',{method:'POST',cookie,ipDe:'10.9.9.9',corpo:{mode:'api',url:'https://exemplo-prova.com/produto'}}).then(json)));
- assert.deepEqual(rede.map(r=>r.status).sort(),[...Array(CASOS_POR_IP).fill(201),429],`6 contas do mesmo IP: ${rede.map(r=>r.status).join(',')}`);
- assert.match(rede.find(r=>r.status===429).data.error??'',/desta rede/);criados+=CASOS_POR_IP;marcas.push(`6_contas_mesmo_ip_5_entram_6a_429 (${CASOS_POR_IP} por IP)`);
  // 2. Teto do sistema: as vagas que sobraram enchem com 201 (nenhuma foi gasta pelas recusas nem pelo motor fora) até 13 casos.
  const encher=async ate=>{for(const nome of ['b','c','d','e']){cookies[nome]??=await entrar(`${nome}@prova.exemplo`);let n=(await json(await pedir('/api/pilot',{cookie:cookies[nome]}))).data.runs.length;while(n<CASOS_POR_DIA&&criados<ate){const r=await novoCaso(cookies[nome]);assert.equal(r.status,201,`caso ${criados+1} do sistema (conta ${nome}): ${r.status} ${JSON.stringify(r.data)}`);n++;criados++}}};
  await encher(CASOS_NO_SISTEMA_POR_DIA-2);

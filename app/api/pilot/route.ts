@@ -4,11 +4,9 @@ import {initialPilotData} from '@/lib/pilot-cases';
 import {createRun,listRuns,casosNasUltimas24h,casosApiNoSistema24h} from '@/lib/pilot-store';
 // Limite por conta: a IA grátis aguenta poucos casos bons por dia para todos (decisão do Nicolas em 06/10: 3, demo conta também).
 // Teto do sistema inteiro (saúde P1, 08/10): 15 casos com o motor por dia, somando todas as contas; conta é grátis, o motor não.
-// Contado nos casos gravados (saúde R4-P1, 10/10), não nas tentativas. Teto por IP: 5 casos com o motor por dia, para que contas
-// do mesmo endereço não esvaziem o dia de todos.
-const CASOS_POR_DIA=3,CASOS_NO_SISTEMA_POR_DIA=15,CASOS_POR_IP=5;
+// Contado nos casos gravados (saúde R4-P1, 10/10), não nas tentativas. Sem teto por endereço de internet (decisão do dono, 11/10).
+const CASOS_POR_DIA=3,CASOS_NO_SISTEMA_POR_DIA=15;
 import {pilotIdentity,pilotHeaders,readPilotBody} from '@/lib/pilot-http';
-import {rateLimited,devolverVaga,clientKey} from '@/lib/rate-limit';
 import {registrarErro} from '@/lib/registrar-erro';
 export async function GET(request:Request){
  const owner=await pilotIdentity(request);if(!owner)return Response.json({error:'Entre para abrir seus casos.'},{status:401,headers:pilotHeaders});
@@ -18,19 +16,15 @@ export async function POST(request:Request){
  const owner=await pilotIdentity(request,true);if(!owner)return Response.json({error:'Entre novamente para salvar o caso.'},{status:403,headers:pilotHeaders});
  let url:string,mode:'api'|'demo',extra:Partial<PilotData>={};
  try{const body=await readPilotBody(request);mode=body?.mode==='demo'?'demo':'api';if(body?.flow==='blitz'&&mode==='api'){const answers=onboardingSchema.parse(body.answers);extra={flow:'blitz',onboarding:{step:2,answers,completedAt:null},batches:0};if(typeof body.description==='string'&&body.description.trim()){if(body.description.trim().length<40||body.description.length>3000)throw new Error('Descreva o produto em 40 a 3.000 caracteres.');extra.descriptionInput=body.description.trim()}}url=extra.descriptionInput?'':normalizeProductUrl(body?.url)}catch(error){return Response.json({error:error instanceof Error?error.message:'Confira o link.'},{status:400,headers:pilotHeaders})}
- let vagaIp='';
  try{
   const tetoDaConta=Response.json({error:`Você já criou ${CASOS_POR_DIA} casos nas últimas 24 horas. Tente de novo amanhã.`},{status:429,headers:pilotHeaders});
   if(await casosNasUltimas24h(owner)>=CASOS_POR_DIA)return tetoDaConta;
   const tetoDoSistema=Response.json({error:'O gerador atingiu o limite do dia. Tente amanhã.'},{status:429,headers:pilotHeaders});
   if(mode==='api'&&await casosApiNoSistema24h()>=CASOS_NO_SISTEMA_POR_DIA)return tetoDoSistema;
-  if(mode==='api'){const chave=`pilot-ip:${clientKey(request)}`;if(await rateLimited(chave,CASOS_POR_IP,86400000))return Response.json({error:`Já foram criados ${CASOS_POR_IP} casos desta rede nas últimas 24 horas. Tente de novo amanhã.`},{status:429,headers:pilotHeaders});vagaIp=chave}
   if(mode==='api'){const health=await(await engineFetch('/health')).json() as {ready:boolean};if(!health.ready)throw new Error('Complete as conexões do gerador privado antes de começar.')}
   let run=await createRun(owner,mode==='demo'?{...initialPilotData(url),mode:'demo'}:initialApiData(url,extra),CASOS_POR_DIA,mode==='api'?CASOS_NO_SISTEMA_POR_DIA:undefined);
   if(!run)return await casosNasUltimas24h(owner)>=CASOS_POR_DIA?tetoDaConta:tetoDoSistema;
-  vagaIp='';
   if(mode==='api'){try{run=await syncGeneration(owner,run)}catch{/* Saved claim resumes on the next progress request. */}}
   return Response.json({run},{status:201,headers:pilotHeaders})
  }catch(error){registrarErro('pilot_criar',error);return Response.json({error:error instanceof Error?error.message:'O caso não foi salvo. Seu link continua aqui; tente novamente.'},{status:503,headers:pilotHeaders})}
- finally{if(vagaIp)await devolverVaga(vagaIp)}
 }
